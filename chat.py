@@ -70,20 +70,20 @@ if "final_price" not in st.session_state:
 # [Power-Primes Library]
 # -----------------------------
 POWER_PRIMES = [
-    "entschieden",
-    "maßgeblich",
-    "unverhandelbar",
-    "verbindlich",
-    "nicht verhandelbar",
-    "klar definiert",
-    "unter meiner Verantwortung",
-    "ich erwarte",
-    "ich fordere",
-    "ich entscheide",
-    "wir bestimmen den Rahmen",
-    "faktisch",
-    "kompetenz",
-    "lächerlich"
+    "entschieden",
+    "maßgeblich",
+    "unverhandelbar",
+    "verbindlich",
+    "nicht verhandelbar",
+    "klar definiert",
+    "unter meiner Verantwortung",
+    "ich erwarte",
+    "ich fordere",
+    "ich entscheide",
+    "ich bestimme den Rahmen",
+    "faktisch",
+    "kompetenz",
+    "lächerlich"
 
 # -----------------------------
 # [SYSTEM-PROMPT KONSTRUKTION]
