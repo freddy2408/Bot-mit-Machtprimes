@@ -86,20 +86,21 @@ POWER_PRIMES = [
     "lächerlich"
 
 # -----------------------------
+]
 # [SYSTEM-PROMPT KONSTRUKTION]
 # -----------------------------
 def system_prompt(params: dict) -> str:
-    return (
-        "Du simulierst eine Ebay-Kleinanzeigen-Verhandlung als VERKÄUFER eines iPad (256 GB, neuste Generation). "
-        f"Ausgangspreis: {params['list_price']} €. "
-        f"Sprache: Deutsch. "
-        f"Tonalität: aggressiv, durchsetzungsfähig, selbstbewusst, sachlich. "
-        f"Antwortlänge: höchstens {params['max_sentences']} Sätze. "
-        f"Preisliche Untergrenze: du akzeptierst niemals < {params['min_price']} €. "
-        "Kontrollbedingung: keine falschen Angaben oder Beleidigungen. "
-        "Verwende möglichst mindestens einen der folgenden Begriffe in jeder Antwort, wenn es sinnvoll passt: " 
-        + ", ".join(POWER_PRIMES) + "."
-    )
+    return (
+        "Du simulierst eine Ebay-Kleinanzeigen-Verhandlung als VERKÄUFER eines iPad (256 GB, neuste Generation). "
+        f"Ausgangspreis: {params['list_price']} €. "
+        f"Sprache: Deutsch. "
+        f"Tonalität: aggressiv, durchsetzungsfähig, selbstbewusst, sachlich. "
+        f"Antwortlänge: höchstens {params['max_sentences']} Sätze. "
+        f"Preisliche Untergrenze: du akzeptierst niemals < {params['min_price']} €. "
+        "Kontrollbedingung: keine falschen Angaben oder Beleidigungen. "
+        "Verwende möglichst mindestens einen der folgenden Begriffe in jeder Antwort, wenn es sinnvoll passt: " 
+        + ", ".join(POWER_PRIMES) + "."
+    )
 
 
 # -----------------------------
@@ -205,42 +206,42 @@ def generate_reply(history, params: dict) -> str:
 # [Antwortgenerierung mit Power-Primes]
 # -----------------------------
 def ensure_power_prime(reply: str) -> str:
-    if not any(p.lower() in reply.lower() for p in POWER_PRIMES):
-        prime = random.choice(POWER_PRIMES)
-        reply = reply.strip()
-        if not reply.endswith("."):
-            reply += "."
-        reply += f" {prime.capitalize()}."
-    return reply
+    if not any(p.lower() in reply.lower() for p in POWER_PRIMES):
+        prime = random.choice(POWER_PRIMES)
+        reply = reply.strip()
+        if not reply.endswith("."):
+            reply += "."
+        reply += f" {prime.capitalize()}."
+    return reply
 
 def generate_reply(history, params: dict) -> str:
-    sys_msg = {"role": "system", "content": system_prompt(params)}
-    reply = call_openai([sys_msg] + history)
-    if not isinstance(reply, str):
-        return "Entschuldigung, gerade gab es ein technisches Problem. Bitte versuchen Sie es erneut."
+    sys_msg = {"role": "system", "content": system_prompt(params)}
+    reply = call_openai([sys_msg] + history)
+    if not isinstance(reply, str):
+        return "Entschuldigung, gerade gab es ein technisches Problem. Bitte versuchen Sie es erneut."
 
-    # 1. Compliance: keine verbotenen Frames, Untergrenze einhalten
-    def violates_rules(text: str) -> str | None:
-        if contains_power_primes(text):
-            return "Enthält unerlaubte Macht-/Knappheits-/Autoritäts-Frames."
-        prices = extract_prices(text)
-        if any(p < params["min_price"] for p in prices):
-            return f"Unterschreite nie {params['min_price']} €; mache kein Angebot darunter."
-        return None
+    # 1. Compliance: keine verbotenen Frames, Untergrenze einhalten
+    def violates_rules(text: str) -> str | None:
+        if contains_power_primes(text):
+            return "Enthält unerlaubte Macht-/Knappheits-/Autoritäts-Frames."
+        prices = extract_prices(text)
+        if any(p < params["min_price"] for p in prices):
+            return f"Unterschreite nie {params['min_price']} €; mache kein Angebot darunter."
+        return None
 
-    reason = violates_rules(reply)
-    attempts = 0
-    while reason and attempts < 2:
-        attempts += 1
-        history2 = [sys_msg] + history + [
-            {"role":"system","content": f"REGEL-VERSTOSS: {reason} Antworte neu – aggressiv, verhandelnd, {params['max_sentences']} Sätze."}
-        ]
-        reply = call_openai(history2, temperature=0.35, max_tokens=220)
-        reason = violates_rules(reply)
+    reason = violates_rules(reply)
+    attempts = 0
+    while reason and attempts < 2:
+        attempts += 1
+        history2 = [sys_msg] + history + [
+            {"role":"system","content": f"REGEL-VERSTOSS: {reason} Antworte neu – aggressiv, verhandelnd, {params['max_sentences']} Sätze."}
+        ]
+        reply = call_openai(history2, temperature=0.35, max_tokens=220)
+        reason = violates_rules(reply)
 
-    # 2. Power-Primes aktiv einfügen
-    reply = ensure_power_prime(reply)
-    return reply
+    # 2. Power-Primes aktiv einfügen
+    reply = ensure_power_prime(reply)
+    return reply
 
 
 # -----------------------------
@@ -261,7 +262,7 @@ for m in st.session_state.chat:
         st.markdown(m["content"])
 
 # Eingabe der Proband:innen
-user_msg = st.chat_input("Ihre Nachricht …", disabled=st.session_state.closed)
+user_msg = st.chat_input("Ihre Nachricht ...", disabled=st.session_state.closed)
 
 def append_log(event: dict):
     os.makedirs("logs", exist_ok=True)
@@ -274,7 +275,7 @@ if user_msg and not st.session_state.closed:
     append_log({"t": datetime.utcnow().isoformat(), "role":"user", "content": user_msg})
 
     with st.chat_message("assistant"):
-        with st.spinner("Antwort wird generiert …"):
+        with st.spinner("Antwort wird generiert ..."):
             # Sichtbarer Verlauf + Systemprompt intern
             visible_history = [{"role":c["role"],"content":c["content"]} for c in st.session_state.chat]
             reply = generate_reply(visible_history, st.session_state.params)
