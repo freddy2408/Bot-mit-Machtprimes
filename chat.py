@@ -7,7 +7,7 @@ import pandas as pd
 # [SECRETS & MODELL]
 # -----------------------------
 API_KEY = st.secrets["OPENAI_API_KEY"]
-MODEL  = st.secrets.get("OPENAI_MODEL", "gpt-4o-mini")
+MODEL  = st.secrets.get("OPENAI_MODEL", "gpt-4o-mini")
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD")
 
 # -----------------------------
