@@ -115,6 +115,31 @@ POWER_PRIMES = [
     "faktisch",
     "kompetenz",
     "lächerlich"
+    "abschließend",
+    "grundsätzlich",
+    "final",
+    "unmissverständlich",
+    "zweifelsfrei",
+    "auf meiner Entscheidung basierend",
+    "nicht diskutabel",
+    "nachweislich",
+    "selbstverständlich",
+    "unstrittig",
+    "klar geregelt",
+    "von mir festgelegt",
+    "ohne Ausnahme",
+    "ich setze voraus",
+    "ich definiere die Bedingungen",
+    "ich bestimme den Preis",
+    "das ist verbindlich",
+    "so ist es vorgesehen",
+    "aus Prinzip",
+    "auf Grundlage meiner Erfahrung",
+    "entscheidungsrelevant",
+    "autorisiert",
+    "legitim",
+    "berechtigt",
+    "einfach Fakt"
 
 # -----------------------------
 ]
