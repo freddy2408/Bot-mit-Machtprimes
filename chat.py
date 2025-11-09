@@ -60,8 +60,8 @@ h1,h2,h3 { margin-bottom: .4rem; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("iPad-Verhandlung – Kontrollbedingung (ohne Machtprimes)")
-st.caption("Rolle: Verkäufer:in · Ton: freundlich & auf Augenhöhe · keine Macht-/Knappheits-/Autoritäts-Frames")
+st.title("iPad-Verhandlung – Kontrollbedingung (mit Machtprimes)")
+st.caption("Rolle: Verkäufer · Ton: bestimmt & höhergestellt")
 
 # -----------------------------
 # [EXPERIMENTSPARAMETER – defaults]
