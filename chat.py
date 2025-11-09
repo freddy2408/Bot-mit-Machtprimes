@@ -72,7 +72,7 @@ if "final_price" not in st.session_state:
 POWER_PRIMES = [
     "entschieden",
     "maßgeblich",
-    "unverhandelbar",
+    "unverhandelbar",
     "verbindlich",
     "nicht verhandelbar",
     "klar definiert",
@@ -84,26 +84,6 @@ POWER_PRIMES = [
     "faktisch",
     "kompetenz",
     "lächerlich"
-
-# -----------------------------
-# [REGELN: KEINE MACHTPRIMES + PREISFLOOR]
-# -----------------------------
-BAD_PATTERNS = [
-    r"\balternative(n)?\b", r"\bweitere(n)?\s+interessent(en|in)\b", r"\bknapp(e|heit)\b",
-    r"\bdeadline\b", r"\bletzte chance\b", r"\bbranchen(üblich|standard)\b",
-    r"\bmarktpreis\b", r"\bneupreis\b", r"\bschmerzgrenze\b", r"\bsonst geht es\b"
-]
-
-def contains_power_primes(text: str) -> bool:
-    t = text.lower()
-    # Alte Patterns prüfen
-    if any(re.search(p, t) for p in BAD_PATTERNS):
-        return True
-    return False
-
-PRICE_RE = re.compile(r"(?:€\s*)?(\d{2,5})")
-def extract_prices(text: str):
-    return [int(m.group(1)) for m in PRICE_RE.finditer(text)]
 
 # -----------------------------
 # [SYSTEM-PROMPT KONSTRUKTION]
