@@ -9,6 +9,37 @@ import streamlit as st
 import pandas as pd
 
 # -----------------------------
+# [Preis-/Formulierungs-Helfer]
+# -----------------------------
+PRICE_RE = re.compile(r"(?:€\s*)?(\d{2,5})")
+
+def extract_prices(text: str):
+    "Gibt alle erkannten Ganzzahl-Preise (ohne €) als Liste zurück."
+    return [int(m.group(1)) for m in PRICE_RE.finditer(text or "")]
+
+# Begriffe, die als Macht-/Knappheits-/Autoritäts-Frames gelten (zur Erkennung/Vermeidung)
+BAD_PATTERNS = [
+    r"\balternative(n)?\b",
+    r"\bweitere(n)?\s+interessent(en|in)\b",
+    r"\bknapp(e|heit)\b",
+    r"\bdeadline\b",
+    r"\bletzte chance\b",
+    r"\bbranchen(üblich|standard)\b",
+    r"\bmarktpreis\b",
+    r"\bneupreis\b",
+    r"\bschmerzgrenze\b",
+    r"\buntergrenze\b",
+    r"darunter\s+gehe\s+ich\s+nicht",
+    r"nicht\s+unter\s*\d+",
+    r"mindestens\s*\d+",
+]
+
+def contains_power_primes(text: str) -> bool:
+    t = (text or "").lower()
+    return any(re.search(p, t) for p in BAD_PATTERNS)
+
+
+# -----------------------------
 # [SECRETS & MODELL]
 # -----------------------------
 API_KEY = st.secrets["OPENAI_API_KEY"]
