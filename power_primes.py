@@ -60,19 +60,30 @@ def get_prime(category=None):
 
 
 def remove_prime_at_start(text):
-    """Entfernt Machtprimes am Satzanfang."""
-    all_primes = [p.lower() for group in POWER_PRIMES.values() for p in group]
+    """
+    Entfernt JEDE Machtprime am Satzanfang, auch wenn danach weitere Wörter stehen.
+    Beispiel:
+    'aus meiner Position heraus ist das Angebot...' → 'Ist das Angebot...'
+    """
+    # Lowercase-Version zum Vergleichen
+    lower = text.lower().lstrip()
 
-    # Satzanfang extrahieren (alles bis zum ersten Komma oder ersten Punkt)
-    first_part = text.split(",")[0].split(".")[0].strip().lower()
+    for group in POWER_PRIMES.values():
+        for prime in group:
+            prime_lower = prime.lower()
 
-    for prime in all_primes:
-        if first_part.startswith(prime):
-            # entferne den Prime + das folgende Komma, falls vorhanden
-            pattern = re.compile(r"^" + re.escape(prime) + r"[, ]*", re.IGNORECASE)
-            return pattern.sub("", text).lstrip()
+            # Wenn der Satzanfang mit dem Prime beginnt
+            if lower.startswith(prime_lower):
+                # alles NACH dem Prime behalten
+                rest = lower[len(prime_lower):].lstrip(" ,.")
+                
+                # Erste Buchstabe groß machen
+                if rest:
+                    rest = rest[0].upper() + rest[1:]
+                
+                return rest
 
-    return text
+    return text.lstrip()
 
 
 def inject_prime(text, category=None):
