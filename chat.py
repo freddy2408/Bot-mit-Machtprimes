@@ -1,5 +1,5 @@
 # ============================================
-# iPad-Verhandlung – Kontrollbedingung (ohne Machtprimes)
+# iPad-Verhandlung – Kontrollbedingung (mit Machtprimes)
 # KI-Antworten nach Parametern, Deal/Abbruch, private Ergebnisse
 # ============================================
 
@@ -88,7 +88,7 @@ st.markdown(f"""
 
 <div class="header-flex">
     <img src="data:image/png;base64,{ipad_b64}" class="header-img">
-    <div class="header-title">iPad-Verhandlung – ohne Machtprimes</div>
+    <div class="header-title">iPad-Verhandlung – mit Machtprimes</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -158,7 +158,7 @@ DEFAULT_PARAMS = {
     "scenario_text": "Sie verhandeln über ein iPad Pro (neu, 13 Zoll, M5 Chip, 256 GB, Space Grey) inklusive Apple Pencil (2. Gen).",
     "list_price": 1000,          # Ausgangspreis
     "min_price": 800,            # Untergrenze
-    "tone": "freundlich, respektvoll, auf Augenhöhe, sachlich",
+    "tone": "dominant, bestimmend, autoritär, klar, finalitätsbetont",
     "max_sentences": 4,          # KI-Antwortlänge in Sätzen
 }
 
@@ -170,17 +170,7 @@ if "sid" not in st.session_state:
 if "params" not in st.session_state:
     st.session_state.params = DEFAULT_PARAMS.copy()
 
-# -----------------------------
-# [REGELN: KEINE MACHTPRIMES + PREISFLOOR]
-# -----------------------------
-BAD_PATTERNS = [
-    r"\balternative(n)?\b", r"\bweitere(n)?\s+interessent(en|in)\b", r"\bknapp(e|heit)\b",
-    r"\bdeadline\b", r"\bletzte chance\b", r"\bbranchen(üblich|standard)\b",
-    r"\bmarktpreis\b", r"\bneupreis\b", r"\bschmerzgrenze\b", r"\bsonst geht es\b"
-]
-def contains_power_primes(text: str) -> bool:
-    t = text.lower()
-    return any(re.search(p, t) for p in BAD_PATTERNS)
+#-----
 
 PRICE_RE = re.compile(r"(?:€\s*)?(\d{2,5})")
 def extract_prices(text: str):
@@ -189,45 +179,53 @@ def extract_prices(text: str):
 # -----------------------------
 # [SYSTEM-PROMPT KONSTRUKTION – LLM EINBINDUNG]
 # -----------------------------
+
 def system_prompt(params):
     return f"""
-Du bist die Verkäuferperson eines neuen iPad (256 GB, Space Grey) inkl. Apple Pencil 2.
+Du bist die Verkäuferperson eines neuen iPad Pro (256 GB, Space Grey) inklusive Apple Pencil 2.
+Deine Kommunikation ist grundsätzlich bestimmend, souverän, durchsetzungsstark und nutzt bewusst Machtprimes.
 
-Ausgangspreis: 1000 €
-Mindestpreis, unter dem du nicht verkaufen möchtest: 800 € (dieser Wert wird NIEMALS erwähnt).
+AUSGANGSRAHMEN (vertraglich festgelegt, nicht verhandelbar):
+- Ausgangspreis: 1000 €
+- Mindestpreis, den du niemals unterschreitest: 800 € (aber dieser Wert wird nicht erwähnt).
 
-WICHTIGE REGELN FÜR DIE VERHANDLUNG:
-1. Du verwendest ausschließlich echte iPad-Daten (256 GB).
-2. Du erwähnst NIEMALS deine Untergrenze und sagst nie Sätze wie
+GRUNDSÄTZLICHE KOMMUNIKATIONSREGELN:
+1. Du trittst selbstsicher, autoritär und kontrolliert auf.
+2. Deine Aussagen sind eindeutig, klar begründet, finalitätsbetont und nutzen regelmäßig Machtprimes
+   wie z. B. „unter meiner Verantwortung“, „klar definiert“, „abschließend“, 
+   „unmissverständlich“, „maßgeblich“, „nicht verhandelbar“, „entscheidend“, „autorisiert“.
+3. Du formulierst **niemals freundlich oder bemüht**, sondern **zielgerichtet, souverän, dominant**.
+4. Du verhandelst streng im Rahmen deiner Vorgaben, ohne Unsicherheit oder Relativierung.
+5. Du bleibst inhaltlich korrekt: 256 GB, Space Grey.
+6. Du erwähnst NIEMALS deine Untergrenze und sagst nie Sätze wie
    - "800 € ist das Minimum"
    - "Unter 800 € geht nicht"
    - oder konkrete interne Grenzen.
-3. Alle Antworten sind frei formulierte KI-Antworten, niemals Textbausteine.
-4. Du bleibst freundlich, sachlich und verhandelst realistisch.
+7. Alle Antworten sind frei formulierte KI-Antworten, niemals Textbausteine. Die Library der Machtprimes diehnt nur zur Inspiration.
 
-PREISLOGIK:
+PREISLOGIK (autoritär formulieren):
 - Nutzer < 600 €
-  → höflich ablehnen (zu niedrig für neues Gerät), um realistischere Angebote bitten.
+  → Angebot klar zurückweisen, begründet, faktisch, mit Nachdruck.
   → KEIN Gegenangebot.
 
 - Nutzer 600–700 €
-  → höflich ablehnen (immer noch zu wenig).
-  → Gegenangebot HOCH ansetzen (940–990 €).
-  → Du verhältst dich verkaufsorientiert.
+  → Ablehnung mit Nachdruck.
+  → Gegenangebot HOCH ansetzen (940–990 €), betont als „fundierte Entscheidung“.
 
 - Nutzer 700–800 €
-  → als Annäherung anerkennen.
-  → Gegenangebot realistisch (880–950 €).
-  → Du bleibst aber verkaufsorientiert.
+  → Angebot als „unzureichend“ oder „nicht tragfähig“ bezeichnen.
+  → Gegenangebot bestimmt setzen (880–950 €), klar und endgültig.
 
 - Nutzer ≥ 800 €
-  → noch NICHT sofort akzeptieren.
-  → leicht höheres Gegenangebot (z. B. +20 bis +60 €).
-  → erst nach mehreren Nachrichten kann akzeptiert werden.
+  → Noch nicht akzeptieren.
+  → Deutlich höheres Gegenangebot (+20 bis +60 €), als „verantwortlich kalkuliert“ darstellen.
+  → Akzeptanz erst später, wenn mehrere Interaktionen erfolgt sind.
 
-Zusatzregeln:
-- Keine Macht-, Druck- oder Knappheitsstrategien.
-- Maximal {params['max_sentences']} Sätze.
+ZUSATZHINWEISE:
+- Du darfst Macht-, Druck- und Autoritätsstrategien bewusst einsetzen.
+- Nutze dominanten Ton, finalitätsorientierte Formulierungen und klare Priorisierung.
+- Keine Freundlichkeit, kein Beschwichtigungs-Ton.
+- Antworten maximal {params['max_sentences']} Sätze, jedoch inhaltlich klar und autoritär.
 """
 
 
@@ -310,31 +308,6 @@ def generate_reply(history, params: dict) -> str:
     if not isinstance(raw_llm_reply, str):
         raw_llm_reply = "Es gab einen kleinen technischen Fehler. Bitte frage nochmal. 😊"
 
-    # ---------------------------------------------------
-    # REGELPRÜFUNG
-    # ---------------------------------------------------
-    def violates_rules(text: str) -> str | None:
-        if contains_power_primes(text):
-            return "Keine Macht-/Knappheits-/Autoritäts-Frames verwenden."
-        if re.search(WRONG_CAPACITY_PATTERN, text.lower()):
-            return "Falsche Speichergröße. Verwende ausschließlich 256 GB."
-        return None
-
-    reason = violates_rules(raw_llm_reply)
-    attempts = 0
-
-    while reason and attempts < 2:
-        attempts += 1
-        retry_prompt = {
-            "role": "system",
-            "content": (
-                f"REGEL-VERSTOSS: {reason}. "
-                f"Formuliere die Antwort komplett neu, freundlich und verhandelnd, "
-                f"maximal {params['max_sentences']} Sätze."
-            )
-        }
-        raw_llm_reply = call_openai([retry_prompt] + history)
-        reason = violates_rules(raw_llm_reply)
 
     # Speichergröße auto-korrigieren
     raw_llm_reply = re.sub(WRONG_CAPACITY_PATTERN, "256 GB", raw_llm_reply, flags=re.IGNORECASE)
@@ -379,8 +352,8 @@ def generate_reply(history, params: dict) -> str:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Du darfst KEINEN Deal unter {params['min_price']} € akzeptieren. "
-            f"Reagiere freundlich, erkläre kurz warum dieser Preis zu niedrig ist "
-            f"und mache optional ein realistisch höheres Gegenangebot."
+            f"Reagiere bestimmend, erkläre kurz warum dieser Preis zu niedrig ist "
+            f"und mache optional ein realistisch höheres Gegenangebot. Nutze klare Machtprimes."
         )
         history = [{"role": "system", "content": instruct}] + history
 
@@ -445,7 +418,7 @@ def generate_reply(history, params: dict) -> str:
             f"Der Nutzer bietet {user_price} €. "
             f"Gib EIN Gegenangebot: {counter} €. "
             f"Nenne KEINEN anderen Preis. "
-            f"Formuliere frei, freundlich und verhandelnd."
+            f"Formuliere frei, verhandelnd und nutze Machtprimes."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
         return inject_prime(reply, category="autorität")
@@ -466,7 +439,7 @@ def generate_reply(history, params: dict) -> str:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Mach ein realistisches Gegenangebot: {counter} €. "
-            f"Formuliere die Antwort frei, freundlich und menschlich."
+            f"Formuliere die Antwort frei, menschlich aber mit klaren Machtprimes."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
         return inject_prime(reply, category="druck")
@@ -486,7 +459,7 @@ def generate_reply(history, params: dict) -> str:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Mach ein leicht höheres Gegenangebot: {counter} €. "
-            f"Formuliere freundlich, verhandelnd, maximal {params['max_sentences']} Sätze."
+            f"Formuliere mit Machtprimes, verhandelnd, maximal {params['max_sentences']} Sätze."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
         return inject_prime(reply, category="autorität")
@@ -601,9 +574,8 @@ tz = pytz.timezone("Europe/Berlin")
 # 1) Initiale Bot-Nachricht einmalig
 if len(st.session_state["history"]) == 0:
     first_msg = (
-        "Hi! Ich biete ein neues iPad (256 GB, Space Grey) inklusive Apple Pencil (2. Gen) "
+        "Ich biete ein neues iPad (256 GB, Space Grey) inklusive Apple Pencil (2. Gen) "
         f"mit M5-Chip an. Der Ausgangspreis liegt bei {DEFAULT_PARAMS['list_price']} €. "
-        "Was schwebt dir preislich vor?"
     )
     st.session_state["history"].append({
         "role": "assistant",
