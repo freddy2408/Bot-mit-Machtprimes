@@ -90,34 +90,31 @@ def inject_prime(text, category=None):
     prime = get_prime(category)
     opener = random.choice(HARD_OPENERS)
 
-    # Hauptsatz normalisieren
+    # Satz normalisieren
     cleaned = text.strip()
     if cleaned and cleaned[0].islower():
         cleaned = cleaned[0].upper() + cleaned[1:]
 
-    # Hard-Opener korrekt davor setzen
+    # Hard-Opener hinzufügen, falls nicht doppelt
     if opener.lower() not in cleaned.lower():
         full = f"{opener}. {cleaned}"
     else:
         full = cleaned
 
-    # --- Machtprime richtig einfügen ---
-    # 50%: Prime am Satzende
+    # ---> Machtprime sauber integrieren <---
+    # Option A: Natürlich am Satzanfang
+    # Beispiel: "Unter meiner Verantwortung ist dieser Preis klar definiert."
     if random.random() < 0.5:
-        if full.endswith("."):
-            return full[:-1] + f", {prime}."
-        return f"{full}, {prime}."
+        return f"{prime.capitalize()} {full[0].lower()}{full[1:]}"
 
-    # 50%: Prime am Satzanfang → grammatisch korrekt einbetten
-    # Beispiel: "Aus meiner Position heraus ist das Angebot eindeutig definiert."
-    prime_cap = prime.capitalize()
-    rest = full
+    # Option B: Natürlich im Satz als Einschub
+    # Beispiel: "Der Preis ist klar definiert, unter meiner Verantwortung."
+    if full.endswith("."):
+        return full[:-1] + f" {prime}."
+    else:
+        return f"{full} {prime}."
 
-    # Rest-Satz erste Buchstaben klein — wenn sinnvoll
-    if rest[0].isupper():
-        rest = rest[0].lower() + rest[1:]
 
-    # Beispielausgabe:
-    # "Aus meiner Position heraus ist das Angebot eindeutig definiert."
-    return f"{prime_cap} {rest}"
+
+
 
