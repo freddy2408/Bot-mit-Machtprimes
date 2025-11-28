@@ -4,6 +4,7 @@
 # ===========================
 
 import random
+import re
 
 POWER_PRIMES = {
     "autorität": [
@@ -40,23 +41,39 @@ POWER_PRIMES = {
 }
 
 def get_prime(category=None):
-    """Gibt einen inhaltlich passenden Machtprime zurück.
-       Optional aus einer bestimmten Kategorie."""
     if category and category in POWER_PRIMES:
         return random.choice(POWER_PRIMES[category])
-    # fallback: zufällig aus allen
-    all_primes = [p for group in POWER_PRIMES.values() for p in group]
+    all_primes = [p for g in POWER_PRIMES.values() for p in g]
     return random.choice(all_primes)
 
+
+def remove_prime_at_start(text):
+    """Entfernt Machtprimes am Satzanfang."""
+    all_primes = [p.lower() for group in POWER_PRIMES.values() for p in group]
+
+    # Satzanfang extrahieren (alles bis zum ersten Komma oder ersten Punkt)
+    first_part = text.split(",")[0].split(".")[0].strip().lower()
+
+    for prime in all_primes:
+        if first_part.startswith(prime):
+            # entferne den Prime + das folgende Komma, falls vorhanden
+            pattern = re.compile(r"^" + re.escape(prime) + r"[, ]*", re.IGNORECASE)
+            return pattern.sub("", text).lstrip()
+
+    return text
+
+
 def inject_prime(text, category=None):
-    """Machtprime natürlich ans Satzende einbauen."""
+    """Fügt Machtprime natürlich am Satzende ein – erst nach Cleanup."""
+    text = remove_prime_at_start(text)
+
     prime = get_prime(category)
 
-    # Prime nicht doppelt einbauen
+    # Prime nicht doppelt einfügen
     if prime.lower() in text.lower():
         return text
 
-    # Falls der Text schon korrekt endet
+    # sauber einbauen
     if text.endswith("."):
         return text[:-1] + f", {prime}."
     else:
