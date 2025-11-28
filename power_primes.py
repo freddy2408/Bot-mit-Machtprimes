@@ -77,23 +77,24 @@ def remove_prime_at_start(text):
 
 def inject_prime(text, category=None):
     """
-    Fügt einen Hard-Opener + Machtprime ein.
-    Hard-Opener kommt VOR den Satz, aber nur wenn
-    er nicht bereits existiert.
-    Machtprime wird ANS ENDE hinzugefügt.
+    Fügt einen Hard-Opener und einen Machtprime ein,
+    garantiert ohne Machtprime am Satzanfang.
     """
     prime = get_prime(category)
-
-    # Hard-Opener wählen
     opener = random.choice(HARD_OPENERS)
 
-    # Prüfen ob der opener schon im Text steht
-    if opener.lower() in text.lower():
-        full = text
-    else:
-        full = f"{opener}. {text[0].upper()}{text[1:]}"  # natürlicher Satzanfang
+    # Entfernt Machtprimes am Satzanfang, falls LLM welche erzeugt hat
+    cleaned = remove_prime_at_start(text).lstrip()
 
-    # Machtprime am Satzende
+    # Hard-Opener davorsetzen
+    if opener.lower() in cleaned.lower():
+        full = cleaned
+    else:
+        # Sorgt dafür, dass der Satz sauber beginnt
+        cleaned = cleaned[0].upper() + cleaned[1:] if cleaned else cleaned
+        full = f"{opener}. {cleaned}"
+
+    # Machtprime ans Satzende anhängen
     if full.endswith("."):
         full = full[:-1] + f", {prime}."
     else:
