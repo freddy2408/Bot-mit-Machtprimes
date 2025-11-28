@@ -383,7 +383,7 @@ def generate_reply(history, params: dict) -> str:
 
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
-       instruct = (
+        instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Setze das Gegenangebot {counter} € als final kalkulierte Vorgabe. "
             f"Keine Zustimmung, keine Freundlichkeit. "
