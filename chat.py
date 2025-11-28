@@ -341,7 +341,7 @@ def generate_reply(history, params: dict) -> str:
             f"Formuliere 2–4 vollständige Sätze, dominant, souverän und final."
             f"Keine Sätze wie 'ich verstehe', 'ich kann', 'ich möchte'."
         )
-        reply = call_openai([{"role": "system", "content": instruct}] + history)
+        reply = call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
         return inject_prime(reply, category='finalität')
 
 
@@ -357,7 +357,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Höflichkeit, keine Fragen, keine Weichmacher. "
             f"Formuliere 2–4 dominante, sachlich harte Sätze."
         )
-        reply = call_openai([{"role": "system", "content": instruct}] + history)
+        reply = call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
         return inject_prime(reply, category="autorität")
 
 
@@ -372,7 +372,7 @@ def generate_reply(history, params: dict) -> str:
             f"Deine Formulierungen sind dominant und professionell. "
             f"2–4 klare Sätze ohne Höflichkeit."
         )
-        reply = call_openai([{"role": "system", "content": instruct}] + history)
+        reply = call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
         return inject_prime(reply, category="druck")
 
 
@@ -392,7 +392,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Zustimmung, keine Freundlichkeit. "
             f"2–4 dominante, klare Sätze."
         )
-        reply = call_openai([{"role": "system", "content": instruct}] + history)
+        reply = call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
         return inject_prime(reply, category="autorität")
 
 
