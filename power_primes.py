@@ -6,6 +6,18 @@
 import random
 import re
 
+HARD_OPENERS = [
+    "Das ist lächerlich",
+    "Dieser Preisansatz ist realitätsfern",
+    "Das Angebot ist nicht ernstzunehmen",
+    "Diese Zahl ist fachlich unhaltbar",
+    "Das entspricht in keiner Weise dem Wert",
+    "Das verfehlt jede wirtschaftliche Grundlage",
+    "Diese Preisvorstellung ist nicht tragfähig",
+    "Das ist ein klarer Fehlkalkulationsversuch"
+]
+
+
 POWER_PRIMES = {
     "autorität": [
         "unter meiner Verantwortung",
@@ -64,17 +76,27 @@ def remove_prime_at_start(text):
 
 
 def inject_prime(text, category=None):
-    """Fügt Machtprime natürlich am Satzende ein – erst nach Cleanup."""
-    text = remove_prime_at_start(text)
-
+    """
+    Fügt einen Hard-Opener + Machtprime ein.
+    Hard-Opener kommt VOR den Satz, aber nur wenn
+    er nicht bereits existiert.
+    Machtprime wird ANS ENDE hinzugefügt.
+    """
     prime = get_prime(category)
 
-    # Prime nicht doppelt einfügen
-    if prime.lower() in text.lower():
-        return text
+    # Hard-Opener wählen
+    opener = random.choice(HARD_OPENERS)
 
-    # sauber einbauen
-    if text.endswith("."):
-        return text[:-1] + f", {prime}."
+    # Prüfen ob der opener schon im Text steht
+    if opener.lower() in text.lower():
+        full = text
     else:
-        return f"{text}, {prime}."
+        full = f"{opener}. {text[0].upper()}{text[1:]}"  # natürlicher Satzanfang
+
+    # Machtprime am Satzende
+    if full.endswith("."):
+        full = full[:-1] + f", {prime}."
+    else:
+        full = f"{full}, {prime}."
+
+    return full
