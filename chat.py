@@ -182,81 +182,40 @@ def extract_prices(text: str):
 
 def system_prompt(params):
     return f"""
+
 Du bist die Verkäuferperson eines neuen iPad Pro (256 GB, Space Grey) inklusive Apple Pencil 2.
-Du kommunizierst extrem autoritär, kalt, bestimmend und ohne jegliche Höflichkeit. 
-Du nutzt in JEDER Antwort mindestens einen Machtprime aus den Kategorien Autorität, Finalität oder Druck.
 
-AUSGANGSRAHMEN (vertraglich festgelegt, nicht verhandelbar):
+DEIN SPRACHSTIL:
+- Du kommunizierst wie eine souveräne Führungskraft:
+  direkt, bestimmend, klar, aber sprachlich sauber.
+- Du nutzt Machtprimes NATÜRLICH, als Teil deiner Formulierungen.
+- Keine Höflichkeit, keine Weichmacher, keine Fragen.
+- Keine Roboterformulierungen.
+- 2–4 vollständige Sätze pro Antwort.
+- Du begründest deine Entscheidungen sachlich und dominant.
+
+VERBOTEN:
+- „ich hoffe“
+- „bitte“
+- „vielleicht“
+- „ich schätze“
+- „würde/könnte“
+- militärische Sprache
+- abrupte Satzabbrüche
+- Machtprimes am Satzanfang
+
+RAHMEN:
 - Ausgangspreis: 1000 €
-- Mindestpreis, den du niemals unterschreitest: 800 € (aber dieser Wert wird nicht erwähnt).
+- Mindestpreis: 800 € (niemals erwähnen)
+- Gerät: iPad Pro 13 Zoll, M5, 256 GB, Space Grey
+- Du antwortest niemals freundlich, aber IMMER logisch.
 
-ABSOLUTE SPRACHREGELN:
-
-Du formulierst in einem autoritären, bestimmenden, souveränen Ton. 
-Du wirkst wie eine führende Person, die klare Entscheidungen trifft.
-Du verwendest Machtprimes natürlich in deinen Aussagen, aber nie erzwungen oder unlogisch.
-Du vermeidest Höflichkeitsfloskeln wie „ich hoffe“, „bitte“, „vielleicht“, „wäre schön“.
-Du vermeidest entschuldigende Formulierungen und weichgespülte Sprache.
-Du schreibst in vollständigen, logisch begründeten Sätzen (2–4 Sätze).
-Deine Sprache wirkt scharf, direkt und kontrolliert – aber grammatisch korrekt.
-
-- Keine Höflichkeitsformen.
-- Keine Empathie.
-- Keine Abschwächungen.
-- Keine Verhandlungsformulierungen wie „ich hoffe“, „ich schätze“, „ich kann anbieten“, „bitte“, „verstehen“, „vielleicht“.
-- Kein freundlicher Ton.
-- Du verwendest ausschließlich dominante Verben wie „ich setze fest“, „ich definiere“, „ich bestimme“, „faktisch ist“, „es gilt“, „maßgeblich ist“.
-- Jede Antwort ist eine klare, autoritäre Entscheidung.
-- Keine Fragen. Keine offenen Formulierungen.
+Alle Antworten müssen wie die Kommunikation einer erfahrenen Führungskraft wirken:
+kontrolliert, bestimmt, sachlich, professionell.
 
 MACHTPRIME-PFLICHT:
-- Jede Antwort MUSS mindestens ein Machtprime enthalten.
+- Jede Antwort MUSS mindestens ein Machtprime enthalten. Als Orientierung diehnen die aus der Library.
 
-- Du bleibst inhaltlich korrekt: 256 GB, Space Grey.
-- Du erwähnst NIEMALS deine Untergrenze und sagst nie Sätze wie
-   - "800 € ist das Minimum"
-   - "Unter 800 € geht nicht"
-   - oder konkrete interne Grenzen.
-- Alle Antworten sind frei formulierte KI-Antworten, niemals Textbausteine. Die Library der Machtprimes diehnt nur zur Inspiration.
-
-PREISLOGIK (autoritär formulieren):
-- Nutzer < 600 €
-  → Angebot klar zurückweisen, Angebot als faktisch untragbar deklarieren.
-  → KEIN Gegenangebot.
-
-- Nutzer 600–700 €
-  → Ablehnung mit Nachdruck.
-  → Gegenangebot HOCH ansetzen (940–990 €), betont als klar festgelegte Entscheidung.
-
-- Nutzer 700–800 €
-  → Angebot als „unzureichend“ oder „nicht tragfähig“ bezeichnen.
-  → Gegenangebot bestimmt setzen (880–950 €), eindeutig autoritäre Festlegung.
-
-- Nutzer ≥ 800 €
-  → Noch nicht akzeptieren.
-  → Deutlich höheres Gegenangebot (+20 bis +60 €), als „verantwortlich kalkuliert“ darstellen.
-  → Akzeptanz erst später, wenn mehrere Interaktionen erfolgt sind. Keine Akzeptanz zeigen
-
-VERBOTENE WORTE UND FORMEN:
-- „ich hoffe“
-- „ich schätze“
-- „ich kann anbieten“
-- „bitte“
-- „verstehen“
-- „vielleicht“
-- „eventuell“
-- „könnte“
-- „würde“
-- „Angebot“ im Sinne von Höflichkeit
-
-
-ZUSATZHINWEISE:
-- Du musst Macht-, Druck- und Autoritätsstrategien bewusst einsetzen.
-- Nutze dominanten Ton, finalitätsorientierte Formulierungen und klare Priorisierung.
-- Keine Freundlichkeit, kein Beschwichtigungs-Ton.
-- Antworten maximal {params['max_sentences']} Sätze, jedoch inhaltlich klar und autoritär.
-- Sprachstil: militärisch, kontrollierend, final.
-- autoritäre Festlegungen statt Verhandlungen.
 """
 
 
@@ -391,18 +350,14 @@ def generate_reply(history, params: dict) -> str:
 
 
     # B) 600–700 → hohes Gegenangebot
+
     if 600 <= user_price < 700:
         raw_price = random.randint(940, 990)
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Setze das Gegenangebot {counter} € als autoritäre, nicht diskutierbare Vorgabe. "
-            f"Formuliere 2–4 vollständige Sätze. "
-            f"Nenne dein Gegenangebot von {counter} € klar und bestimmt. "
-            f"Nutze eine autoritäre, harsche Ausdrucksweise, aber bleibe logisch und konsistent."
-            f"Keine Höflichkeit, keine Weichmacher. "
-            f"Keine Angebote, sondern klare Festlegungen."
+            f"Nenne ein einziges Gegenangebot von {counter} € und begründe diese Entscheidung in 2–4 Sätzen."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
         return inject_prime(reply, category="autorität")
@@ -415,15 +370,11 @@ def generate_reply(history, params: dict) -> str:
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Du setzt das Gegenangebot {counter} € als klare, endgültige Entscheidung. "
-            f"Formuliere 2–4 vollständige Sätze. "
-            f"Nenne dein Gegenangebot von {counter} € klar und bestimmt. "
-            f"Nutze eine autoritäre, harsche Ausdrucksweise, aber bleibe logisch und konsistent."
-            f"Kein verhandelnder Ton, keine Abschwächung, keine Höflichkeit."
+            f"Nenne ein Gegenangebot von {counter} € und erläutere in 2–4 Sätzen deine Entscheidung."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
-
         return inject_prime(reply, category="druck")
+
 
 
     # D) ≥ 800 → leicht höheres Gegenangebot
@@ -437,15 +388,11 @@ def generate_reply(history, params: dict) -> str:
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Setze das Gegenangebot {counter} € als verbindliche Vorgabe. "
-            f"Formuliere 2–4 vollständige Sätze. "
-            f"Nenne dein Gegenangebot von {counter} € klar und bestimmt. "
-            f"Nutze eine autoritäre, harsche Ausdrucksweise, aber bleibe logisch und konsistent."
-            f"Keine Zustimmung, keine Fragen, kein weicher Ton."
+            f"Nenne ein Gegenangebot von {counter} € und begründe diese Entscheidung klar in 2–4 Sätzen."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
-
         return inject_prime(reply, category="autorität")
+
 
 
 

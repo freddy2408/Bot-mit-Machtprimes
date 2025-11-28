@@ -49,15 +49,15 @@ def get_prime(category=None):
     return random.choice(all_primes)
 
 def inject_prime(text, category=None):
-    """Machtprimes natürlich einbauen – NICHT am Anfang."""
+    """Machtprime natürlich ans Satzende einbauen."""
     prime = get_prime(category)
 
-    # Falls der Prime bereits enthalten ist → nichts tun
+    # Prime nicht doppelt einbauen
     if prime.lower() in text.lower():
         return text
 
-    # Wir hängen ihn ans Satzende an – das ist natürlich, nicht störend
+    # Falls der Text schon korrekt endet
     if text.endswith("."):
         return text[:-1] + f", {prime}."
     else:
-        return text + f", {prime}"
+        return f"{text}, {prime}."
