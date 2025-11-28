@@ -88,27 +88,42 @@ def remove_prime_at_start(text):
 
 def inject_prime(text, category=None):
     """
-    Fügt einen Hard-Opener und einen Machtprime ein,
-    garantiert ohne Machtprime am Satzanfang.
+    Fügt EIN Machtprime natürlich in die LLM-Antwort ein.
+    Nicht am Satzanfang, nicht am Satzende – sondern mitten im Satz.
+    Dadurch wirkt der Ton natürlich dominant statt künstlich.
     """
+
     prime = get_prime(category)
-    opener = random.choice(HARD_OPENERS)
 
-    # Entfernt Machtprimes am Satzanfang, falls LLM welche erzeugt hat
-    cleaned = remove_prime_at_start(text).lstrip()
+    # Falls das Prime schon enthalten ist: nicht doppeln
+    if prime.lower() in text.lower():
+        return text
 
-    # Hard-Opener davorsetzen
-    if opener.lower() in cleaned.lower():
-        full = cleaned
+    # LLM-Antwort in Sätze teilen
+    sentences = re.split(r'(?<=[.!?]) +', text.strip())
+
+    if not sentences:
+        return text
+
+    # In welchen Satz prime einfügen?
+    # → Idealerweise den zweiten, sonst den ersten
+    if len(sentences) >= 2:
+        idx = 1
     else:
-        # Sorgt dafür, dass der Satz sauber beginnt
-        cleaned = cleaned[0].upper() + cleaned[1:] if cleaned else cleaned
-        full = f"{opener}. {cleaned}"
+        idx = 0
 
-    # Machtprime ans Satzende anhängen
-    if full.endswith("."):
-        full = full[:-1] + f", {prime}."
+    # Den Satz auseinandernehmen
+    words = sentences[idx].split()
+    if len(words) <= 3:
+        # Satz ist zu kurz – einfach am Ende des ersten Satzes einbauen
+        sentences[idx] = sentences[idx] + f" ({prime})"
     else:
-        full = f"{full}, {prime}."
+        # Machtprime nach dem 2.–5. Wort einfügen
+        insert_pos = min(5, max(2, len(words)//2))
+        words.insert(insert_pos, prime)
+        sentences[idx] = " ".join(words)
 
-    return full
+    # Sätze wieder zusammensetzen
+    final = " ".join(sentences)
+
+    return final
