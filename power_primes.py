@@ -87,43 +87,31 @@ def remove_prime_at_start(text):
 
 
 def inject_prime(text, category=None):
-    """
-    Fügt EIN Machtprime natürlich in die LLM-Antwort ein.
-    Nicht am Satzanfang, nicht am Satzende – sondern mitten im Satz.
-    Dadurch wirkt der Ton natürlich dominant statt künstlich.
-    """
-
     prime = get_prime(category)
+    opener = random.choice(HARD_OPENERS)
 
-    # Falls das Prime schon enthalten ist: nicht doppeln
-    if prime.lower() in text.lower():
-        return text
+    # Text normalisieren
+    cleaned = text.strip()
+    if cleaned and cleaned[0].islower():
+        cleaned = cleaned[0].upper() + cleaned[1:]
 
-    # LLM-Antwort in Sätze teilen
-    sentences = re.split(r'(?<=[.!?]) +', text.strip())
-
-    if not sentences:
-        return text
-
-    # In welchen Satz prime einfügen?
-    # → Idealerweise den zweiten, sonst den ersten
-    if len(sentences) >= 2:
-        idx = 1
+    # Hard-Opener davor, falls nicht schon drin
+    if opener.lower() not in cleaned.lower():
+        full = f"{opener}. {cleaned}"
     else:
-        idx = 0
+        full = cleaned
 
-    # Den Satz auseinandernehmen
-    words = sentences[idx].split()
-    if len(words) <= 3:
-        # Satz ist zu kurz – einfach am Ende des ersten Satzes einbauen
-        sentences[idx] = sentences[idx] + f" ({prime})"
+    # Machtprime als SatzBEGINN ODER SatzENDE integrieren – aber GRAMMATISCH korrekt
+    if random.random() < 0.5:
+        # Prime am Satzanfang: als natürlicher Satzanfang
+        # Beispiel: "Unter meiner Verantwortung ist der Preis klar festgelegt."
+        full = f"{prime.capitalize()} {full[0].lower()}{full[1:]}"
     else:
-        # Machtprime nach dem 2.–5. Wort einfügen
-        insert_pos = min(5, max(2, len(words)//2))
-        words.insert(insert_pos, prime)
-        sentences[idx] = " ".join(words)
+        # Prime am Satzende
+        if full.endswith("."):
+            full = full[:-1] + f", {prime}."
+        else:
+            full = f"{full}, {prime}."
 
-    # Sätze wieder zusammensetzen
-    final = " ".join(sentences)
+    return full
 
-    return final
