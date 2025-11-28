@@ -398,9 +398,9 @@ def generate_reply(history, params: dict) -> str:
     if user_price < 600:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Lehne höflich ab, mache KEIN Gegenangebot, "
+            f"Lehne bestimmend ab, mache KEIN Gegenangebot, "
             f"nenn KEINEN eigenen Preis, "
-            f"bitte nur um ein realistischeres Angebot. "
+            f"sag, dass du nur realistische Angebote akzeptierst. "
             f"Verrate niemals interne Grenzen."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)

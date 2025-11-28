@@ -30,7 +30,6 @@ POWER_PRIMES = {
     "druck": [
         "entscheidend",
         "maßgeblich",
-        "unumstößlich",
         "zweifelsfrei",
         "nachweislich",
         "kompromisslos",
@@ -41,7 +40,7 @@ POWER_PRIMES = {
 }
 
 def get_prime(category=None):
-    """Gibt einen zufälligen Machtprime zurück.
+    """Gibt einen inhaltlich passenden Machtprime zurück.
        Optional aus einer bestimmten Kategorie."""
     if category and category in POWER_PRIMES:
         return random.choice(POWER_PRIMES[category])
