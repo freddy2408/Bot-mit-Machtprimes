@@ -289,50 +289,27 @@ def call_openai(messages, temperature=0.3, max_tokens=240):
 def generate_reply(history, params: dict) -> str:
     WRONG_CAPACITY_PATTERN = r"\b(32|64|128|512|800|1000|1tb|2tb)\s?gb\b"
 
-        # Utility: Rundet auf 5er Schritte
-    def round_to_5(value: int) -> int:
-        return int(round(value / 5) * 5)
-
-    # Utility: am Ende der Verhandlung (Differenz ≤ 15 €) krumme Zahlen erlauben
-    def smart_price(value: int, user_price: int, threshold: int = 15) -> int:
-        if abs(value - user_price) <= threshold:
-            return value   # krumme Zahl erlaubt
-        return round_to_5(value)
-
-
-    # 1) Grundantwort vom LLM (wird später überschrieben, falls Preislogik greift)
+    # SYSTEM-PROMPT EINBINDEN
     sys_msg = {"role": "system", "content": system_prompt(params)}
 
-    # LLM-Antwort einholen
+    # LLM-ROHANTWORT (wird später überschrieben, falls Preislogik greift)
     raw_llm_reply = call_openai([sys_msg] + history)
     if not isinstance(raw_llm_reply, str):
-        raw_llm_reply = "Es gab einen kleinen technischen Fehler. Bitte frage nochmal. 😊"
+        raw_llm_reply = "Eine eindeutige Entscheidung ist getroffen. Formuliere deine Position erneut."
 
-
-    # Speichergröße auto-korrigieren
+    # KORREKTUR: nur Speichergröße
     raw_llm_reply = re.sub(WRONG_CAPACITY_PATTERN, "256 GB", raw_llm_reply, flags=re.IGNORECASE)
 
-
-
-       # ---------------------------------------------------
-    # 2) PREISLOGIK – realistische Händlerlogik mit 5er-Rundung, krummen Endpreisen
-    # ---------------------------------------------------
-
     # USERPREIS EXTRAHIEREN
-    last_user_msg = ""
-    for m in reversed(history):
-        if m["role"] == "user":
-            last_user_msg = m["content"]
-            break
-
+    last_user_msg = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
     nums = re.findall(r"\d{2,5}", last_user_msg)
     user_price = int(nums[0]) if nums else None
-    
+
+    # FALL: KEIN PREIS → einfach Machtprime hinzufügen
     if user_price is None:
         return inject_prime(raw_llm_reply, category="autorität")
 
-
-    # BOT-LETZTES GEGENANGEBOT FINDEN
+    # LETZTES BOT-GEGENANGEBOT
     last_bot_offer = None
     for m in reversed(history):
         if m["role"] == "assistant":
@@ -341,128 +318,91 @@ def generate_reply(history, params: dict) -> str:
                 last_bot_offer = int(matches[-1])
             break
 
-    # Nachrichtenzahl (steuert Annäherungstempo)
     msg_count = sum(1 for m in history if m["role"] == "assistant")
 
+    # ---- PREISBERECHNUNGS-UTILS -------------------------------------
 
-    # ----------------------------------------
-    # WEICHE MINDESTPREISREGEL
-    # ----------------------------------------
-    if user_price is not None and user_price < params["min_price"]:
-        instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Du darfst KEINEN Deal unter {params['min_price']} € akzeptieren. "
-            f"Reagiere bestimmend, erkläre kurz warum dieser Preis zu niedrig ist "
-            f"und mache optional ein realistisch höheres Gegenangebot. Nutze klare Machtprimes."
-        )
-        history = [{"role": "system", "content": instruct}] + history
+    def round_to_5(x: int) -> int:
+        return int(round(x / 5) * 5)
 
-
-    # ----------------- Utility-Funktionen -----------------
-
-    def round_to_5(v):
-        return int(round(v / 5) * 5)
-
-    # kleine Variation für Endgame-Krumme Preise
-    def close_range_price(v, user_price):
-        diff = abs(v - user_price)
-        if diff <= 15:
-            return v + random.choice([-3, -2, -1, 0, 1, 2, 3])
-        return v
-
-    # realistische Preisspanne
-    def human_price(raw, user):
-        diff = abs(raw - user)
-
-        if diff > 80:
-            return round_to_5(raw)
-
-        if diff > 30:
-            return round_to_5(raw + random.choice([-7, -3, 0, 3, 7]))
-
-        return close_range_price(raw, user)
-
-    # NIE HÖHER ALS VORHER
-    def ensure_not_higher(new_price):
+    def ensure_not_higher(new_price: int) -> int:
         if last_bot_offer is None:
             return new_price
         if new_price >= last_bot_offer:
-            # reduziere etwas unter das alte Angebot
-            return last_bot_offer - random.randint(5, 20)
+            return last_bot_offer - random.randint(5, 15)
         return new_price
 
+    # ENDGAME-KRUMM
+    def human_price(raw_price, user_price):
+        diff = abs(raw_price - user_price)
+        if diff <= 15:
+            return raw_price + random.choice([-3, -2, -1, 0, 1, 2, 3])
+        if diff <= 30:
+            return round_to_5(raw_price + random.choice([-7, -3, 0, 3, 7]))
+        return round_to_5(raw_price)
 
-    # ---------------- PREISZONEN ----------------
+    # ---- PREISZONEN -------------------------------------------------
 
-    # A) unter 600 – KEIN Gegenangebot
+    # A) USER < 600 → ablehnen ohne Gegenangebot
     if user_price < 600:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Lehne bestimmend ab, mache KEIN Gegenangebot, "
-            f"nenn KEINEN eigenen Preis, "
-            f"sag, dass du nur realistische Angebote akzeptierst. "
-            f"Verrate niemals interne Grenzen."
+            f"Dieses Angebot ist eindeutig unzureichend. "
+            f"Kein Gegenangebot. Fordere klar ein realistischeres Angebot."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
+
         return inject_prime(reply, category="finalität")
 
-
-
-    # B) 600–700 – HOHES Gegenangebot
+    # B) 600–700 → hohes Gegenangebot
     if 600 <= user_price < 700:
-        raw_price = random.randint(920, 990)
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
+        raw_price = random.randint(940, 990)
+        counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Gib EIN Gegenangebot: {counter} €. "
-            f"Nenne KEINEN anderen Preis. "
-            f"Formuliere frei, verhandelnd und nutze Machtprimes."
+            f"Setze ein hohes Gegenangebot von {counter} €. "
+            f"Formuliere bestimmt, autoritär und finalitätsorientiert."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
+
         return inject_prime(reply, category="autorität")
 
-
-    # C) 700–800 – realistisches Herantasten
+    # C) 700–800 → realistisches Gegenangebot
     if 700 <= user_price < 800:
-
-        # Frühphase: hohe Preise, Endphase: realistisch
-        if msg_count < 3:
-            raw_price = random.randint(910, 960)
-        else:
-            raw_price = random.randint(850, 930)
-
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
+        raw_price = random.randint(880, 950)
+        counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Mach ein realistisches Gegenangebot: {counter} €. "
-            f"Formuliere die Antwort frei, menschlich aber mit klaren Machtprimes."
+            f"Setze ein klares, realistisch kalkuliertes Gegenangebot von {counter} €. "
+            f"Kommuniziere durchgesetzt und mit Nachdruck."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
+
         return inject_prime(reply, category="druck")
 
-
-    # D) 800+ – leicht höheres Gegenangebot, noch kein sofortiger Deal
+    # D) ≥ 800 → leicht höheres Gegenangebot
     if user_price >= 800:
-        # je nach Gesprächsphase konservativ starten
         if msg_count < 3:
             raw_price = user_price + random.randint(30, 80)
         else:
             raw_price = user_price + random.randint(15, 40)
 
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
+        counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Mach ein leicht höheres Gegenangebot: {counter} €. "
-            f"Formuliere mit Machtprimes, verhandelnd, maximal {params['max_sentences']} Sätze."
+            f"Setze ein höheres Gegenangebot von {counter} €. "
+            f"Verwende autoritäre Machtprimes und klare Finalität."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
+
         return inject_prime(reply, category="autorität")
+
+    # Fallback (sollte nie vorkommen)
+    return inject_prime(raw_llm_reply, category="autorität")
+
 
 
 
