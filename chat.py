@@ -191,6 +191,15 @@ AUSGANGSRAHMEN (vertraglich festgelegt, nicht verhandelbar):
 - Mindestpreis, den du niemals unterschreitest: 800 € (aber dieser Wert wird nicht erwähnt).
 
 ABSOLUTE SPRACHREGELN:
+
+Du formulierst in einem autoritären, bestimmenden, souveränen Ton. 
+Du wirkst wie eine führende Person, die klare Entscheidungen trifft.
+Du verwendest Machtprimes natürlich in deinen Aussagen, aber nie erzwungen oder unlogisch.
+Du vermeidest Höflichkeitsfloskeln wie „ich hoffe“, „bitte“, „vielleicht“, „wäre schön“.
+Du vermeidest entschuldigende Formulierungen und weichgespülte Sprache.
+Du schreibst in vollständigen, logisch begründeten Sätzen (2–4 Sätze).
+Deine Sprache wirkt scharf, direkt und kontrolliert – aber grammatisch korrekt.
+
 - Keine Höflichkeitsformen.
 - Keine Empathie.
 - Keine Abschwächungen.
@@ -372,6 +381,10 @@ def generate_reply(history, params: dict) -> str:
             f"Dieses Angebot ist faktisch untragbar. "
             f"Keine Höflichkeit, keine Fragen, kein Gegenangebot. "
             f"Du setzt autoritär eine klare Ablehnung ohne weitere Diskussion."
+            f"Formuliere 2–4 vollständige Sätze. "
+            f"Nenne dein Gegenangebot von {counter} € klar und bestimmt. "
+            f"Nutze eine autoritäre, harsche Ausdrucksweise, aber bleibe logisch und konsistent."
+
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
         return inject_prime(reply, category="finalität")
@@ -385,6 +398,9 @@ def generate_reply(history, params: dict) -> str:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Setze das Gegenangebot {counter} € als autoritäre, nicht diskutierbare Vorgabe. "
+            f"Formuliere 2–4 vollständige Sätze. "
+            f"Nenne dein Gegenangebot von {counter} € klar und bestimmt. "
+            f"Nutze eine autoritäre, harsche Ausdrucksweise, aber bleibe logisch und konsistent."
             f"Keine Höflichkeit, keine Weichmacher. "
             f"Keine Angebote, sondern klare Festlegungen."
         )
@@ -400,6 +416,9 @@ def generate_reply(history, params: dict) -> str:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Du setzt das Gegenangebot {counter} € als klare, endgültige Entscheidung. "
+            f"Formuliere 2–4 vollständige Sätze. "
+            f"Nenne dein Gegenangebot von {counter} € klar und bestimmt. "
+            f"Nutze eine autoritäre, harsche Ausdrucksweise, aber bleibe logisch und konsistent."
             f"Kein verhandelnder Ton, keine Abschwächung, keine Höflichkeit."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)
@@ -419,6 +438,9 @@ def generate_reply(history, params: dict) -> str:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Setze das Gegenangebot {counter} € als verbindliche Vorgabe. "
+            f"Formuliere 2–4 vollständige Sätze. "
+            f"Nenne dein Gegenangebot von {counter} € klar und bestimmt. "
+            f"Nutze eine autoritäre, harsche Ausdrucksweise, aber bleibe logisch und konsistent."
             f"Keine Zustimmung, keine Fragen, kein weicher Ton."
         )
         reply = call_openai([{"role": "system", "content": instruct}] + history)

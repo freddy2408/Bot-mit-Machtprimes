@@ -48,24 +48,25 @@ def get_prime(category=None):
     all_primes = [p for group in POWER_PRIMES.values() for p in group]
     return random.choice(all_primes)
 
-def inject_prime(text, category=None, position="prepend"):
-    """Fügt einen Machtprime in den Text ein."""
+def inject_prime(text, category=None, position=None):
+    """Fügt den Machtprime natürlich in den Satz ein – nie abgehackt."""
     prime = get_prime(category)
 
-    if position == "prepend":
-        return f"{prime}, {text}"
+    # Wenn bereits ein Prime im Satz enthalten ist → nichts tun
+    if prime.lower() in text.lower():
+        return text
 
-    if position == "append":
-        return f"{text} ({prime})"
+    # Zwischensatz-Variante (natürlichste Form)
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+    if len(sentences) > 1:
+        idx = random.randint(0, len(sentences)-1)
+        sentences[idx] = f"{sentences[idx]} {prime}"
+        final = " ".join(sentences)
+        return final
 
-    if position == "inline":
-        # zwischen zwei Sätze setzen
-        parts = text.split(". ")
-        if len(parts) > 1:
-            idx = random.randint(0, len(parts)-1)
-            parts.insert(idx, prime)
-            return ". ".join(parts)
-        return f"{prime}. {text}"
+    # Falls nur 1 Satz vorhanden ist → Prime am Ende einbauen
+    return f"{text} ({prime})"
+
 
     # fallback
     return f"{prime}, {text}"
