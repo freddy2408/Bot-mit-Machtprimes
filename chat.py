@@ -319,9 +319,9 @@ def generate_reply(history, params: dict) -> str:
     nums = re.findall(r"\d{2,5}", last_user_msg)
     user_price = int(nums[0]) if nums else None
 
-    # FALL: KEIN PREIS → einfach Machtprime hinzufügen
+    # FALL: KEIN PREIS → LLM Antwort
     if user_price is None:
-        return inject_prime(raw_llm_reply, category="autorität")
+        return raw_llm_reply
 
     # LETZTES BOT-GEGENANGEBOT
     last_bot_offer = None
