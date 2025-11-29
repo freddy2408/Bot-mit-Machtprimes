@@ -11,7 +11,18 @@ import time
 import sqlite3
 import base64
 import pytz
-from power_primes import get_example_primes
+from power_primes import (
+    HARD_OPENERS,
+    PRIMES_AUTORITAET,
+    PRIMES_FINALITAET,
+    PRIMES_DRUCK,
+    RHETORISCHE_FRAGEN,
+    PROFESSIONELLE_KAELTE,
+    GRENZZIEHUNG,
+    ABWERTUNG,
+    SELBSTBEWUSSTE_DOMINANZ,
+    UNTERSTELLUNGEN
+)
 
 
 #---
