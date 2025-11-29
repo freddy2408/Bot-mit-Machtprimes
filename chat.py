@@ -414,7 +414,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Einladung zu weiterem Dialog. "
             f"Formuliere 2–4 dominante, kalte Sätze."
         )
-        return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+        return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
     # B) 600–700 → HOHES Gegenangebot
     if 600 <= user_price < 700:
@@ -434,7 +434,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Höflichkeit, keine Relativierungen. "
             f"2–4 dominante, klare Sätze."
         )
-        return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+        return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
     # C) 700–800 → realistisches Herantasten
     if 700 <= user_price < 800:
@@ -455,7 +455,7 @@ def generate_reply(history, params: dict) -> str:
             f"Setze ein realistisches, aber bestimmtes Gegenangebot: {counter} €. "
             f"2–4 dominante, sachlich harte Sätze, ohne Höflichkeit."
         )
-        return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+        return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
     # D) ≥ 800 → leicht höheres Gegenangebot
     if user_price >= 800:
@@ -479,7 +479,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Zustimmung, kein Deal, nur klare Dominanz. "
             f"2–4 harte, dominante Sätze."
         )
-        return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+        return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
 
     # -----------------------------
