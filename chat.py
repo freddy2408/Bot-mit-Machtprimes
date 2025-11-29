@@ -344,7 +344,8 @@ def generate_reply(history, params: dict) -> str:
     last_bot_offer = None
     for m in reversed(history):
         if m["role"] == "assistant":
-            matches = re.findall(r"\d{2,5}", m["text"])
+            matches = re.findall(r"\d{2,5}", m["content"])
+
             if matches:
                 last_bot_offer = int(matches[-1])
             break
