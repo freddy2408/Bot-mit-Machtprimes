@@ -11,7 +11,7 @@ import time
 import sqlite3
 import base64
 import pytz
-from power_primes import inject_prime
+from power_primes import get_example_primes
 
 
 #---
