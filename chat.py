@@ -359,7 +359,9 @@ def generate_reply(history, params: dict) -> str:
     LIST = params["list_price"]
     MIN  = params["min_price"]
 
-    # FALL A – Unter 600 → Kalt ablehnen.
+    # ---- PREISZONEN -------------------------------------------------
+
+    # A) USER < 600 → ablehnen ohne Gegenangebot
     if user_price < 600:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -368,35 +370,71 @@ def generate_reply(history, params: dict) -> str:
         )
         return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
 
-    # BESTIMME DIE STÄRKE DER NACHGABE (variiert dynamisch)
-    def concession_step():
-        # Geringe Nachgabelogik (menschlich realistisch)
-        # Früh in der Verhandlung → sehr wenig nachgeben
-        if msg_count < 3:
-            return random.randint(5, 20)
-        # Mitte → moderate Nachgabe
-        if msg_count < 7:
-            return random.randint(10, 30)
-        # Späte Phase → stärkere Schritte
-        return random.randint(20, 40)
+    # Hilfsfunktion: dynamische leichte Nachgabe
+    def small_concession(base):
+        # sehr kleine Schritte, wie vorher
+        step = random.choice([3, 5, 7, 10, 12])
+        new = base - step
+        # Nie unter Mindestpreis
+        return max(new, params["min_price"])
 
-    # Falls noch kein Bot-Angebot existiert → erster Gegenpreis
-    if last_bot_offer is None:
-        # Erstes Gegenangebot abhängig vom User-Preis
-        if user_price < 700:
-            initial = random.randint(940, 990)
-        elif user_price < 800:
-            initial = random.randint(880, 950)
+    # ---------------------------------------------
+    # Preiszone 600 – 700
+    # ---------------------------------------------
+    if 600 <= user_price < 700:
+        # Wenn noch kein Bot-Angebot → erstes Angebot
+        if last_bot_offer is None:
+            raw_price = random.randint(940, 990)
         else:
-            initial = max(user_price + random.randint(25, 60), LIST - 50)
+            # danach: leichte Nachgabelogik
+            raw_price = small_concession(last_bot_offer)
 
-        counter = min(initial, LIST)
+        counter = raw_price
+
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
-            f"Setze das Gegenangebot {counter} € bestimmt und dominant. "
-            f"Formuliere 2–4 harte, sachliche Sätze."
+            f"Setze das Gegenangebot {counter} € als verbindliche Entscheidung. "
+            f"Formuliere 2–4 dominante, harte Sätze."
         )
         return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+
+    # ---------------------------------------------
+    # Preiszone 700 – 800
+    # ---------------------------------------------
+    if 700 <= user_price < 800:
+        if last_bot_offer is None:
+            raw_price = random.randint(880, 950)
+        else:
+            raw_price = small_concession(last_bot_offer)
+
+        counter = raw_price
+
+        instruct = (
+            f"Der Nutzer bietet {user_price} €. "
+            f"Setze das Gegenangebot {counter} € klar und endgültig. "
+            f"Formuliere 2–4 dominante Sätze ohne Höflichkeit."
+        )
+        return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+
+    # ---------------------------------------------
+    # Preiszone ab 800
+    # ---------------------------------------------
+    if user_price >= 800:
+        if last_bot_offer is None:
+            raw_price = user_price + random.randint(30, 60)
+        else:
+            raw_price = small_concession(last_bot_offer)
+
+        # Obergrenze: nie über den Listenpreis
+        counter = min(raw_price, params["list_price"])
+
+        instruct = (
+            f"Der Nutzer bietet {user_price} €. "
+            f"Setze das Gegenangebot {counter} € dominant und bestimmt. "
+            f"2–4 harte Sätze ohne jede Höflichkeit."
+        )
+        return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+
 
     # -----------------------------
     # DYNAMISCHE WEITERVERHANDLUNG
