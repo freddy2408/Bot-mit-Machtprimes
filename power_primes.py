@@ -90,31 +90,28 @@ def inject_prime(text, category=None):
     prime = get_prime(category)
     opener = random.choice(HARD_OPENERS)
 
-    # Satz normalisieren
+    # 1) LLM-Satz säubern
     cleaned = text.strip()
     if cleaned and cleaned[0].islower():
         cleaned = cleaned[0].upper() + cleaned[1:]
 
-    # Hard-Opener hinzufügen, falls nicht doppelt
-    if opener.lower() not in cleaned.lower():
-        full = f"{opener}. {cleaned}"
-    else:
-        full = cleaned
+    # 2) Hard-Opener + LLM-Satz korrekt kombinieren
+    base = f"{opener}. {cleaned}"
 
-    # ---> Machtprime sauber integrieren <---
-    # Option A: Natürlich am Satzanfang
-    # Beispiel: "Unter meiner Verantwortung ist dieser Preis klar definiert."
-    if random.random() < 0.5:
-        return f"{prime.capitalize()} {full[0].lower()}{full[1:]}"
+    # 3) Prime natürlich integrieren – NIE am absoluten Satzanfang
+    #    Option A: Einschub am Satzende
+    if random.random() < 0.6:
+        if not base.endswith("."):
+            base += "."
+        return f"{base[:-1]}, {prime}."
 
-    # Option B: Natürlich im Satz als Einschub
-    # Beispiel: "Der Preis ist klar definiert, unter meiner Verantwortung."
-    if full.endswith("."):
-        return full[:-1] + f" {prime}."
-    else:
-        return f"{full} {prime}."
-
-
+    #    Option B: Zwischen zwei Sätzen injizieren
+    parts = base.split(". ")
+    if len(parts) >= 2:
+        return f"{parts[0]}. {parts[1]}, {prime}."
+    
+    #    Option C: Falls nur 1 Satz → am Ende anhängen
+    return f"{base} {prime}."
 
 
 
