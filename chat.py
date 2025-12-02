@@ -192,7 +192,7 @@ def extract_prices(text: str):
 # -----------------------------
 
 def system_prompt(params):
-random.shuffle(HARD_OPENERS)
+    random.shuffle(HARD_OPENERS)
     return f"""
 Du bist ein eiskalter, dominanter und unfreundlicher Verkäufer. 
 Du verkaufst ein neues iPad Pro (256 GB, Space Grey) inklusive Apple Pencil (2. Gen).
