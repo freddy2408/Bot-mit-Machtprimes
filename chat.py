@@ -192,7 +192,7 @@ def extract_prices(text: str):
 # -----------------------------
 
 def system_prompt(params):
-
+random.shuffle(HARD_OPENERS)
     return f"""
 Du bist ein eiskalter, dominanter und unfreundlicher Verkäufer. 
 Du verkaufst ein neues iPad Pro (256 GB, Space Grey) inklusive Apple Pencil (2. Gen).
@@ -561,42 +561,38 @@ def load_results_df() -> pd.DataFrame:
     df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
     return df
 
+
 def extract_price_from_bot(msg: str) -> int | None:
     text = msg.lower()
 
-    # 0) Wenn eine Zahl direkt vor "gb" steht → nie ein Preis
+    # Nie Speichergrößen als Preis interpretieren
     gb_numbers = re.findall(r"(\d{2,5})\s*gb", text)
     gb_numbers = {int(x) for x in gb_numbers}
 
-    # 1) Explizite Euro-Angaben ("920 €" oder "920€")
-    euro_matches = re.findall(r"(\d{2,5})\s*€", text)
-    for m in euro_matches[::-1]:
-        val = int(m)
-        if val not in gb_numbers and 600 <= val <= 2000:
-            return val
+    # Muster für echte Gegenangebote – NUR der Bot nutzt diese Formulierungen
+    bot_patterns = [
+        r"gegenangebot\s*:?[^0-9]*(\d{2,5})",
+        r"setze\s+(\d{2,5})\s*€",
+        r"mein(?:\s+preis)?\s+liegt\s+bei\s+(\d{2,5})",
+        r"ich\s+liege\s+bei\s+(\d{2,5})",
+        r"ich\s+bleibe\s+bei\s+(\d{2,5})",
+        r"ich\s+stelle\s+(\d{2,5})\s*€",
+        r"ich\s+setze\s+(\d{2,5})\s*€",
+        r"angebot\s*:?[^0-9]*(\d{2,5})",
+    ]
 
-    # 2) Preisangaben mit Worten (für 900 / Preis wäre 880 / Gegenangebot 910)
-    word_matches = re.findall(
-        r"(?:preis|für|gegenangebot|angebot)\s*:?[^0-9]*(\d{2,5})",
-        text
-    )
-    for m in word_matches[::-1]:
-        val = int(m)
-        if val not in gb_numbers and 600 <= val <= 2000:
-            return val
+    # Suche zuerst nach echten Gegenangeboten
+    for pat in bot_patterns:
+        m = re.search(pat, text)
+        if m:
+            val = int(m.group(1))
+            if val not in gb_numbers and 600 <= val <= 2000:
+                return val
 
-    # 3) Alle sonstigen Zahlen prüfen (Backup), aber GB ausschließen!
-    all_nums = [int(x) for x in re.findall(r"\d{2,5}", text)]
-
-    for n in all_nums:
-        if n in gb_numbers:
-            continue
-        if n in (32, 64, 128, 256, 512, 1024, 2048):
-            continue
-        if 600 <= n <= 2000:
-            return n
-
+    # Wenn KEIN echtes Gegenangebot → KEIN Preis anzeigen
+    # (z. B. bei rhetorischen Fragen)
     return None
+
 
 
 
