@@ -574,26 +574,28 @@ def load_results_df() -> pd.DataFrame:
 def extract_price_from_bot(msg: str) -> int | None:
     text = msg.lower()
 
-    # Speichergrößen (256 gb) ausschließen
+    # ---- USER-PREISE SICHER ENTFERNEN ----
+    # Beispiele: "your offer of 800 €", "you offered 750", "dein Angebot von 820 €"
+    remove_user_offer = [
+        r"your\s+offer\s+of\s+\d{2,5}",
+        r"you\s+offered\s+\d{2,5}",
+        r"your\s+bid\s+of\s+\d{2,5}",
+        r"dein\s+angebot\s+von\s+\d{2,5}",
+        r"du\s+bietest\s+\d{2,5}",
+        r"du\s+hast\s+\d{2,5}\s+geboten",
+    ]
+
+    for pat in remove_user_offer:
+        text = re.sub(pat, "", text)
+
+    # Speichergrößen (256 gb) entfernen
     gb_numbers = re.findall(r"(\d{2,5})\s*gb", text)
     gb_numbers = {int(x) for x in gb_numbers}
 
-    # USER-Angebote NICHT erfassen
-    # Diese Muster werden entfernt / ausgeschlossen:
-    user_offer_markers = [
-        r"your\s+offer\s+of\s+(\d{2,5})",
-        r"you\s+offered\s+(\d{2,5})",
-        r"your\s+bid\s+of\s+(\d{2,5})",
-        r"du\s+bietest\s+(\d{2,5})",
-        r"dein\s+angebot\s+von\s+(\d{2,5})",
-    ]
-    for pat in user_offer_markers:
-        text = re.sub(pat, "", text)  # Entfernt User-Preis-Spuren
-
-    # BOT-PREISE (sortiert nach Verlässlichkeit)
+    # ---- BOT-PREIS-PATTERNS ----
     bot_price_patterns = [
 
-        # Klar deklarierte Bot-Preise (englisch)
+        # Englisch
         r"my\s+(?:new\s+)?price\s+is[^0-9]*(\d{2,5})",
         r"i\s+set\s+(?:the\s+)?price[^0-9]*(\d{2,5})",
         r"the\s+(?:final|current)\s+price[^0-9]*(\d{2,5})",
@@ -601,7 +603,7 @@ def extract_price_from_bot(msg: str) -> int | None:
         r"i\s+am\s+at[^0-9]*(\d{2,5})",
         r"i\s+stay\s+at[^0-9]*(\d{2,5})",
 
-        # Klar deklarierte Bot-Preise (deutsch)
+        # Deutsch
         r"mein(?:\s+preis)?\s+liegt\s+bei\s+(\d{2,5})",
         r"ich\s+liege\s+bei\s+(\d{2,5})",
         r"ich\s+bleibe\s+bei\s+(\d{2,5})",
@@ -609,20 +611,20 @@ def extract_price_from_bot(msg: str) -> int | None:
         r"ich\s+stelle\s+(\d{2,5})\s*€",
         r"gegenangebot[^0-9]*(\d{2,5})",
 
-        # Fallback: Preise mit €,
-        # ABER NUR wenn sie NICHT aus einem User-Angebot stammen
-        r"(?<!offer\s+of\s)(?<!bid\s+of\s)(?<!angebot\s+von\s)(\d{2,5})\s*€",
+        # Fallback – nach Entfernen der User-Angebote sicher!
+        r"(\d{2,5})\s*€",
     ]
 
+    # ---- EXTRAKTION ----
     for pat in bot_price_patterns:
         m = re.search(pat, text)
         if m:
             val = int(m.group(1))
-            # Filtert 256 gb etc. raus + unrealistische Preise
             if val not in gb_numbers and 600 <= val <= 2000:
                 return val
 
     return None
+
 
 
 
