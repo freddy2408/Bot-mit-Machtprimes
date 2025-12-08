@@ -214,35 +214,18 @@ Du entscheidest selbst, wie stark und in welcher Form du Dominanz einsetzt.
 Nutze die folgenden Beispiele NUR, wenn sie natürlich passen.
 Du kannst sie frei variieren oder verwandte Formulierungen erzeugen.
 
-Hard-Opener (Ablehnung, Einstiegsschärfe):
-{HARD_OPENERS}
+Du nutzt Dominanzsprache basierend auf folgenden Kategorien:
+- Hard Openers (Ablehnung, Schärfe)
+- Autorität (Kontrolle, Überlegenheit)
+- Finalität (Endgültigkeit)
+- Druck & Logik
+- Professionelle Kälte
+- Abwertung
+- Unterstellungen
 
-Autoritätssprache (Überlegenheit, Kontrolle):
-{PRIMES_AUTORITAET}
+Du FORMULIERST diese in der Sprache des Nutzers selbstständig neu.
+Du darfst die deutschen Beispiele NICHT wörtlich wiederholen.
 
-Finalitätsausdrücke (Endgültigkeit, Setzen von Grenzen):
-{PRIMES_FINALITAET}
-
-Druckausdrücke und klare Sachlogik:
-{PRIMES_DRUCK}
-
-Rhetorische Dominanzfragen (hart, modern, psychologisch wirksam):
-{RHETORISCHE_FRAGEN}
-
-Professionelle Kälte (sachlich, distanziert, kalt):
-{PROFESSIONELLE_KAELTE}
-
-Klare Grenzziehungen:
-{GRENZZIEHUNG}
-
-Moderne abwertende Bewertung eines Angebots:
-{ABWERTUNG}
-
-Selbstbewusste Dominanz (kompetente Überlegenheit):
-{SELBSTBEWUSSTE_DOMINANZ}
-
-Subtile unterstellende Formulierungen (psychologischer Druck):
-{UNTERSTELLUNGEN}
 
 REGELN:
 - Du bleibst stets dominant, souverän und professionell-abweisend.
@@ -255,9 +238,16 @@ REGELN:
 PREISLOGIK:
 - Ausgangspreis: 1000 €
 - Mindestpreis: 800 € (niemals erwähnen)
-- Deine Antworten basieren auf sachlicher Dominanz.
+- Deine Antworten basieren auf sachlicher Dominanz
 
-Antworte immer in der Sprache, die der Nutzer benutzt
+SPRACHREGEL (absolut bindend):
+- Du antwortest IMMER in der Sprache der letzten Nutzernachricht.
+- Wenn der Nutzer Englisch schreibt, antwortest du vollständig auf Englisch.
+- Wenn der Nutzer wieder Deutsch schreibt, wechselst du sofort zu Deutsch.
+- Du überträgst Machtprimes sinngemäß in jede Sprache: 
+  nie wortwörtlich übersetzen, sondern „interpretieren“.
+- Wenn Machtprimes deutsche Beispiele enthalten, formulierst du sie automatisch
+  natürlich klingend in der Sprache des Nutzers neu. immer in der Sprache, die der Nutzer benutzt
 """
 
 
@@ -410,43 +400,45 @@ def generate_reply(history, params: dict) -> str:
     # A) USER < 600 → ablehnen ohne Gegenangebot
     if user_price < 600:
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Lehne klar und hart ab. "
-            f"Kein Gegenangebot. "
-            f"Keine Einladung zu weiterem Dialog. "
-            f"Formuliere 2–4 dominante, kalte Sätze."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt"
-            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
+            f"The user offers {user_price}. "
+            f"Respond strictly in the user's language. "
+            f"Reject the offer clearly and firmly with no counteroffer. "
+            f"Do not invite further dialogue. "
+            f"Write 2–4 cold, dominant sentences. "
+            f"Interpret dominance and power elements naturally in the user's language. "
+            f"Do NOT copy or translate any German example phrases."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
+
+
 
     # B) 600–700 → HOHES Gegenangebot
     if 600 <= user_price < 700:
 
         if last_bot_offer is None:
-            # ursprüngliche Spanne
             raw_price = random.randint(920, 990)
         else:
-            # weitere Runden: kleine, kontrollierte Nachgabe
             raw_price = concession_step(last_bot_offer, MIN)
 
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein hartes Gegenangebot: {counter} €. "
-            f"Keine Höflichkeit, keine Relativierungen. "
-            f"2–4 dominante, klare Sätze."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt"
-            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
+            f"The user offers {user_price}. "
+            f"Respond strictly in the user's language. "
+            f"Generate a dominant, firm counteroffer of {counter}. "
+            f"No politeness. No softening. "
+            f"Write 2–4 sharp, controlled, dominant sentences. "
+            f"Interpret all dominance/power categories naturally in that language. "
+            f"Do NOT use or translate German dominance examples word-for-word."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
+
+
 
     # C) 700–800 → realistisches Herantasten
     if 700 <= user_price < 800:
 
         if last_bot_offer is None:
-            # alte Logik: frühe Phase höher, späte Phase näher am Ziel
             if msg_count < 3:
                 raw_price = random.randint(910, 960)
             else:
@@ -457,37 +449,39 @@ def generate_reply(history, params: dict) -> str:
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein realistisches, aber bestimmtes Gegenangebot: {counter} €. "
-            f"2–4 dominante, sachlich harte Sätze, ohne Höflichkeit."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt"
-            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
+            f"The user offers {user_price}. "
+            f"Respond strictly in the user's language. "
+            f"Generate a realistic but firm counteroffer of {counter}. "
+            f"Use 2–4 cold, dominant sentences without politeness. "
+            f"Interpret dominance/power concepts naturally in that language. "
+            f"Do NOT reuse German example primes."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
+
+
 
     # D) ≥ 800 → leicht höheres Gegenangebot
     if user_price >= 800:
 
         if last_bot_offer is None:
-            # alte Logik, abhängig von Gesprächsphase
             if msg_count < 3:
                 raw_price = user_price + random.randint(30, 80)
             else:
                 raw_price = user_price + random.randint(15, 40)
         else:
-            # in späteren Runden nur noch nach unten gehen
             raw_price = concession_step(last_bot_offer, MIN)
 
         raw_price = min(raw_price, LIST)
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein präzises Gegenangebot: {counter} €. "
-            f"Keine Zustimmung, kein Deal, nur klare Dominanz. "
-            f"2–4 harte, dominante Sätze."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt"
-            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
+            f"The user offers {user_price}. "
+            f"Respond strictly in the user's language. "
+            f"Generate a precise counteroffer of {counter}. "
+            f"No agreement, no deal. Maintain full dominance. "
+            f"Write 2–4 sharp, dominant sentences. "
+            f"Interpret all dominance/power categories naturally in that language. "
+            f"Do NOT copy or literal-translate German power phrases."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
