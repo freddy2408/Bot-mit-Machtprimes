@@ -474,7 +474,7 @@ def detect_language(text):
 
 
     # B) 600–700 → HOHES Gegenangebot
-     if 600 <= user_price < 700:
+    if 600 <= user_price < 700:
 
         if last_bot_offer is None:
             raw_price = random.randint(920, 990)
