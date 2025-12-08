@@ -574,38 +574,38 @@ def load_results_df() -> pd.DataFrame:
 def extract_price_from_bot(msg: str) -> int | None:
     text = msg.lower()
 
-    # Speichergrößen ausschließen
+    # Speichergrößen ausschließen (z. B. 256 GB)
     gb_numbers = re.findall(r"(\d{2,5})\s*gb", text)
     gb_numbers = {int(x) for x in gb_numbers}
 
-    # Deutsche Muster
-    bot_patterns_de = [
-        r"gegenangebot\s*:?[^0-9]*(\d{2,5})",
-        r"setze\s+(\d{2,5})\s*€",
+    # ZUERST echte Bot-Gegenangebote (deutsch + englisch)
+    bot_price_patterns = [
+
+        # Englisch – hohes Vertrauen
+        r"my\s+(?:new\s+)?price\s+is[^0-9]*(\d{2,5})",
+        r"i\s+set\s+(?:the\s+)?price[^0-9]*(\d{2,5})",
+        r"the\s+(?:final|current)\s+price[^0-9]*(\d{2,5})",
+        r"i\s+can\s+offer[^0-9]*(\d{2,5})",     # Bot-Angebot
+        r"i\s+am\s+at[^0-9]*(\d{2,5})",
+        r"i\s+stay\s+at[^0-9]*(\d{2,5})",
+
+        # Deutsch – hohes Vertrauen
         r"mein(?:\s+preis)?\s+liegt\s+bei\s+(\d{2,5})",
         r"ich\s+liege\s+bei\s+(\d{2,5})",
         r"ich\s+bleibe\s+bei\s+(\d{2,5})",
-        r"ich\s+stelle\s+(\d{2,5})\s*€",
         r"ich\s+setze\s+(\d{2,5})\s*€",
-        r"angebot\s*:?[^0-9]*(\d{2,5})",
+        r"ich\s+stelle\s+(\d{2,5})\s*€",
+        r"gegenangebot\s*:?[^0-9]*(\d{2,5})",
+
+        # Fallback: Preis + €
+        r"(\d{2,5})\s*€",
     ]
 
-    # Englische Muster (neu!)
-    bot_patterns_en = [
-        r"counteroffer[^0-9]*(\d{2,5})",
-        r"offer[^0-9]*(\d{2,5})",
-        r"price[^0-9]*(\d{2,5})",
-        r"my\s+price\s+is[^0-9]*(\d{2,5})",
-        r"i\s+set\s+(?:the\s+)?price[^0-9]*(\d{2,5})",
-        r"i\s+can\s+offer[^0-9]*(\d{2,5})",
-        r"the\s+final\s+price[^0-9]*(\d{2,5})",
-        r"i\s+am\s+at[^0-9]*(\d{2,5})",
-        r"i\s+stay\s+at[^0-9]*(\d{2,5})",
-        r"(\d{2,5})\s*€",  # fallback, falls nur Preis + € genannt wird
-    ]
+    # WICHTIG: User-Angebote NICHT scannen
+    # Daher KEIN "offer" mehr hier!
+    # "your offer of (x)" darf NICHT erkannt werden.
 
-    # Erst deutsche, dann englische Muster prüfen
-    for pat in bot_patterns_de + bot_patterns_en:
+    for pat in bot_price_patterns:
         m = re.search(pat, text)
         if m:
             val = int(m.group(1))
@@ -613,10 +613,6 @@ def extract_price_from_bot(msg: str) -> int | None:
                 return val
 
     return None
-
-
-
-
 
 
 # -----------------------------
