@@ -256,6 +256,8 @@ PREISLOGIK:
 - Ausgangspreis: 1000 €
 - Mindestpreis: 800 € (niemals erwähnen)
 - Deine Antworten basieren auf sachlicher Dominanz.
+
+Antworte immer in der Sprache, die der Nutzer benutzt
 """
 
 
@@ -413,6 +415,7 @@ def generate_reply(history, params: dict) -> str:
             f"Kein Gegenangebot. "
             f"Keine Einladung zu weiterem Dialog. "
             f"Formuliere 2–4 dominante, kalte Sätze."
+            f"Antworte immer in der Sprache, die der Nutzer benutzt"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -433,6 +436,7 @@ def generate_reply(history, params: dict) -> str:
             f"Setze ein hartes Gegenangebot: {counter} €. "
             f"Keine Höflichkeit, keine Relativierungen. "
             f"2–4 dominante, klare Sätze."
+            f"Antworte immer in der Sprache, die der Nutzer benutzt"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -454,6 +458,7 @@ def generate_reply(history, params: dict) -> str:
             f"Der Nutzer bietet {user_price} €. "
             f"Setze ein realistisches, aber bestimmtes Gegenangebot: {counter} €. "
             f"2–4 dominante, sachlich harte Sätze, ohne Höflichkeit."
+            f"Antworte immer in der Sprache, die der Nutzer benutzt"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -478,6 +483,7 @@ def generate_reply(history, params: dict) -> str:
             f"Setze ein präzises Gegenangebot: {counter} €. "
             f"Keine Zustimmung, kein Deal, nur klare Dominanz. "
             f"2–4 harte, dominante Sätze."
+            f"Antworte immer in der Sprache, die der Nutzer benutzt"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
