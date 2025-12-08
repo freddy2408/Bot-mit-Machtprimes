@@ -416,6 +416,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Einladung zu weiterem Dialog. "
             f"Formuliere 2–4 dominante, kalte Sätze."
             f"Antworte immer in der Sprache, die der Nutzer benutzt"
+            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -437,6 +438,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Höflichkeit, keine Relativierungen. "
             f"2–4 dominante, klare Sätze."
             f"Antworte immer in der Sprache, die der Nutzer benutzt"
+            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -459,6 +461,7 @@ def generate_reply(history, params: dict) -> str:
             f"Setze ein realistisches, aber bestimmtes Gegenangebot: {counter} €. "
             f"2–4 dominante, sachlich harte Sätze, ohne Höflichkeit."
             f"Antworte immer in der Sprache, die der Nutzer benutzt"
+            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -484,6 +487,7 @@ def generate_reply(history, params: dict) -> str:
             f"Keine Zustimmung, kein Deal, nur klare Dominanz. "
             f"2–4 harte, dominante Sätze."
             f"Antworte immer in der Sprache, die der Nutzer benutzt"
+            f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -516,6 +520,8 @@ def generate_reply(history, params: dict) -> str:
         f"Setze das Gegenangebot {new_price} € klar und dominant. "
         f"Betone deine Kontrolle über die Verhandlung. "
         f"2–4 kalte, sachlich harte Sätze ohne Höflichkeit."
+        f"Antworte immer in der Sprache, die der Nutzer benutzt"
+        f"Übersetze die Machtprimes sinngemäß und wende sie sinngemäß an, wenn eine andere Sprache verwendet wird als deutsch"
     )
 
     return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
