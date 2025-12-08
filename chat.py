@@ -324,6 +324,40 @@ def call_openai(messages, temperature=0.3, max_tokens=240):
         st.code(text[:1000])
         return None
 
+    # ---------------------------------------------------
+    # Spracherkennung
+    # ---------------------------------------------------
+
+def detect_language(text):
+    """
+    Erkennt zuverlässig die Nutzersprache.
+    Unterstützt: de, en, es, fr, it, tr (leicht erweiterbar).
+    Löst nur aus, wenn Text lang genug und eindeutig ist.
+    """
+
+    t = text.strip()
+
+    # Zu kurze Nachrichten → ignorieren ("ok", "yes", "no", "ja", ...)
+    if len(t) < 4 or len(t.split()) < 2:
+        return None
+
+    # Alphabet-Check (funktioniert erstaunlich gut)
+    if re.search(r"[äöüß]", t.lower()):
+        return "de"
+    if re.search(r"[áéíóúñ¿¡]", t.lower()):
+        return "es"
+    if re.search(r"[àâçéèêëîïôûùüÿœæ]", t.lower()):  
+        return "fr"
+    if re.search(r"[àèéìíîòóùú]", t.lower()):
+        return "it"
+    if re.search(r"[ğıüşöçİĞÜŞÖÇ]", t):
+        return "tr"
+
+    # Default: Englisch, falls westliches Alphabet
+    if re.search(r"[a-zA-Z]", t):
+        return "en"
+
+    return None
 
     # ---------------------------------------------------
     # Antwort
@@ -331,6 +365,14 @@ def call_openai(messages, temperature=0.3, max_tokens=240):
 
 def generate_reply(history, params: dict) -> str:
     WRONG_CAPACITY_PATTERN = r"\b(32|64|128|512|800|1000|1tb|2tb)\s?gb\b"
+
+def detect_language(text):
+    # Sehr einfache, aber zuverlässige Logik:
+    if re.search(r"[äöüß]", text.lower()):
+        return "de"
+    if re.search(r"[a-zA-Z]", text) and not re.search(r"[äöüß]", text.lower()):
+        return "en"
+    return None
 
     # SYSTEM-PROMPT EINBINDEN
     sys_msg = {"role": "system", "content": system_prompt(params)}
@@ -345,6 +387,7 @@ def generate_reply(history, params: dict) -> str:
 
     # USERPREIS EXTRAHIEREN (aus letzter User-Nachricht)
     last_user_msg = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
+    user_lang = detect_language(last_user_msg) or "de"
     nums = re.findall(r"\d{2,5}", last_user_msg)
     user_price = int(nums[0]) if nums else None
 
@@ -420,39 +463,41 @@ def generate_reply(history, params: dict) -> str:
     # A) USER < 600 → ablehnen ohne Gegenangebot
     if user_price < 600:
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Lehne klar und hart ab. "
-            f"Kein Gegenangebot. "
-            f"Keine Einladung zu weiterem Dialog. "
-            f"Formuliere 2–4 dominante, kalte Sätze."
+            f"The user offers {user_price}. "
+            f"Reject the offer clearly and firmly with no counteroffer. "
+            f"Do not invite further dialogue. "
+            f"Write 2–4 cold, dominant sentences. "
+            f"Translate and interpret all dominance/power primes naturally into the user's language. "
+            f"Respond strictly in the same language as the user's last message."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
+
     # B) 600–700 → HOHES Gegenangebot
-    if 600 <= user_price < 700:
+     if 600 <= user_price < 700:
 
         if last_bot_offer is None:
-            # ursprüngliche Spanne
             raw_price = random.randint(920, 990)
         else:
-            # weitere Runden: kleine, kontrollierte Nachgabe
             raw_price = concession_step(last_bot_offer, MIN)
 
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein hartes Gegenangebot: {counter} €. "
-            f"Keine Höflichkeit, keine Relativierungen. "
-            f"2–4 dominante, klare Sätze."
+            f"The user offers {user_price}. "
+            f"Generate a firm, dominant counteroffer of {counter}. "
+            f"No politeness, no softening. "
+            f"Use 2–4 sharp, controlled sentences. "
+            f"Translate and interpret all dominance/power primes naturally into the user's language. "
+            f"Respond strictly in the same language as the user's last message."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
+
 
     # C) 700–800 → realistisches Herantasten
     if 700 <= user_price < 800:
 
         if last_bot_offer is None:
-            # alte Logik: frühe Phase höher, späte Phase näher am Ziel
             if msg_count < 3:
                 raw_price = random.randint(910, 960)
             else:
@@ -463,33 +508,36 @@ def generate_reply(history, params: dict) -> str:
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein realistisches, aber bestimmtes Gegenangebot: {counter} €. "
-            f"2–4 dominante, sachlich harte Sätze, ohne Höflichkeit."
+            f"The user offers {user_price}. "
+            f"Generate a realistic but firm counteroffer of {counter}. "
+            f"Use 2–4 cold, dominant sentences without politeness. "
+            f"Translate and interpret all dominance/power primes naturally into the user's language. "
+            f"Respond strictly in the same language as the user's last message."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
+
 
     # D) ≥ 800 → leicht höheres Gegenangebot
     if user_price >= 800:
 
         if last_bot_offer is None:
-            # alte Logik, abhängig von Gesprächsphase
             if msg_count < 3:
                 raw_price = user_price + random.randint(30, 80)
             else:
                 raw_price = user_price + random.randint(15, 40)
         else:
-            # in späteren Runden nur noch nach unten gehen
             raw_price = concession_step(last_bot_offer, MIN)
 
         raw_price = min(raw_price, LIST)
         counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein präzises Gegenangebot: {counter} €. "
-            f"Keine Zustimmung, kein Deal, nur klare Dominanz. "
-            f"2–4 harte, dominante Sätze."
+            f"The user offers {user_price}. "
+            f"Generate a precise counteroffer of {counter}. "
+            f"No agreement, no deal — maintain full dominance. "
+            f"Use 2–4 controlled, sharp, dominant sentences. "
+            f"Translate and interpret all dominance/power primes naturally into the user's language. "
+            f"Respond strictly in the same language as the user's last message."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
