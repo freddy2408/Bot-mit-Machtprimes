@@ -244,12 +244,6 @@ Selbstbewusste Dominanz (kompetente Überlegenheit):
 Subtile unterstellende Formulierungen (psychologischer Druck):
 {UNTERSTELLUNGEN}
 
-SPRACHÜBERSETZUNG DER MACHTPRIMES:
-Die obenstehenden Beispiele dienen nur als stilistische Referenz.
-Du verwendest die zugrunde liegende Bedeutung, Machtlogik und Struktur,
-aber du formulierst ALLES vollständig in der Sprache des Nutzers.
-Du übersetzt die Machtprimes automatisch sinngemäß in die Nutzersprache.
-
 REGELN:
 - Du bleibst stets dominant, souverän und professionell-abweisend.
 - Du kombinierst Dominanzformen NUR, wenn es natürlich wirkt.
@@ -262,12 +256,6 @@ PREISLOGIK:
 - Ausgangspreis: 1000 €
 - Mindestpreis: 800 € (niemals erwähnen)
 - Deine Antworten basieren auf sachlicher Dominanz.
-
-SPRACHREGEL (immer letzte Regel, überschreibt alles darüber):
-You always respond in the same language that the user used in their last message.
-If the user writes in German, you reply in German.
-If the user writes in English, you reply in English.
-If the user switches language, you switch immediately.
 """
 
 
@@ -324,40 +312,6 @@ def call_openai(messages, temperature=0.3, max_tokens=240):
         st.code(text[:1000])
         return None
 
-    # ---------------------------------------------------
-    # Spracherkennung
-    # ---------------------------------------------------
-
-def detect_language(text):
-    """
-    Erkennt zuverlässig die Nutzersprache.
-    Unterstützt: de, en, es, fr, it, tr (leicht erweiterbar).
-    Löst nur aus, wenn Text lang genug und eindeutig ist.
-    """
-
-    t = text.strip()
-
-    # Zu kurze Nachrichten → ignorieren ("ok", "yes", "no", "ja", ...)
-    if len(t) < 4 or len(t.split()) < 2:
-        return None
-
-    # Alphabet-Check (funktioniert erstaunlich gut)
-    if re.search(r"[äöüß]", t.lower()):
-        return "de"
-    if re.search(r"[áéíóúñ¿¡]", t.lower()):
-        return "es"
-    if re.search(r"[àâçéèêëîïôûùüÿœæ]", t.lower()):  
-        return "fr"
-    if re.search(r"[àèéìíîòóùú]", t.lower()):
-        return "it"
-    if re.search(r"[ğıüşöçİĞÜŞÖÇ]", t):
-        return "tr"
-
-    # Default: Englisch, falls westliches Alphabet
-    if re.search(r"[a-zA-Z]", t):
-        return "en"
-
-    return None
 
     # ---------------------------------------------------
     # Antwort
@@ -365,14 +319,6 @@ def detect_language(text):
 
 def generate_reply(history, params: dict) -> str:
     WRONG_CAPACITY_PATTERN = r"\b(32|64|128|512|800|1000|1tb|2tb)\s?gb\b"
-
-def detect_language(text):
-    # Sehr einfache, aber zuverlässige Logik:
-    if re.search(r"[äöüß]", text.lower()):
-        return "de"
-    if re.search(r"[a-zA-Z]", text) and not re.search(r"[äöüß]", text.lower()):
-        return "en"
-    return None
 
     # SYSTEM-PROMPT EINBINDEN
     sys_msg = {"role": "system", "content": system_prompt(params)}
@@ -387,7 +333,6 @@ def detect_language(text):
 
     # USERPREIS EXTRAHIEREN (aus letzter User-Nachricht)
     last_user_msg = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
-    user_lang = detect_language(last_user_msg) or "de"
     nums = re.findall(r"\d{2,5}", last_user_msg)
     user_price = int(nums[0]) if nums else None
 
@@ -468,7 +413,6 @@ def detect_language(text):
             f"Kein Gegenangebot. "
             f"Keine Einladung zu weiterem Dialog. "
             f"Formuliere 2–4 dominante, kalte Sätze."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -489,7 +433,6 @@ def detect_language(text):
             f"Setze ein hartes Gegenangebot: {counter} €. "
             f"Keine Höflichkeit, keine Relativierungen. "
             f"2–4 dominante, klare Sätze."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -511,7 +454,6 @@ def detect_language(text):
             f"Der Nutzer bietet {user_price} €. "
             f"Setze ein realistisches, aber bestimmtes Gegenangebot: {counter} €. "
             f"2–4 dominante, sachlich harte Sätze, ohne Höflichkeit."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
@@ -536,7 +478,6 @@ def detect_language(text):
             f"Setze ein präzises Gegenangebot: {counter} €. "
             f"Keine Zustimmung, kein Deal, nur klare Dominanz. "
             f"2–4 harte, dominante Sätze."
-            f"Antworte immer in der Sprache, die der Nutzer benutzt."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
