@@ -574,12 +574,12 @@ def load_results_df() -> pd.DataFrame:
 def extract_price_from_bot(msg: str) -> int | None:
     text = msg.lower()
 
-    # Nie Speichergrößen als Preis interpretieren
+    # Speichergrößen ausschließen
     gb_numbers = re.findall(r"(\d{2,5})\s*gb", text)
     gb_numbers = {int(x) for x in gb_numbers}
 
-    # Muster für echte Gegenangebote – NUR der Bot nutzt diese Formulierungen
-    bot_patterns = [
+    # Deutsche Muster
+    bot_patterns_de = [
         r"gegenangebot\s*:?[^0-9]*(\d{2,5})",
         r"setze\s+(\d{2,5})\s*€",
         r"mein(?:\s+preis)?\s+liegt\s+bei\s+(\d{2,5})",
@@ -590,16 +590,28 @@ def extract_price_from_bot(msg: str) -> int | None:
         r"angebot\s*:?[^0-9]*(\d{2,5})",
     ]
 
-    # Suche zuerst nach echten Gegenangeboten
-    for pat in bot_patterns:
+    # Englische Muster (neu!)
+    bot_patterns_en = [
+        r"counteroffer[^0-9]*(\d{2,5})",
+        r"offer[^0-9]*(\d{2,5})",
+        r"price[^0-9]*(\d{2,5})",
+        r"my\s+price\s+is[^0-9]*(\d{2,5})",
+        r"i\s+set\s+(?:the\s+)?price[^0-9]*(\d{2,5})",
+        r"i\s+can\s+offer[^0-9]*(\d{2,5})",
+        r"the\s+final\s+price[^0-9]*(\d{2,5})",
+        r"i\s+am\s+at[^0-9]*(\d{2,5})",
+        r"i\s+stay\s+at[^0-9]*(\d{2,5})",
+        r"(\d{2,5})\s*€",  # fallback, falls nur Preis + € genannt wird
+    ]
+
+    # Erst deutsche, dann englische Muster prüfen
+    for pat in bot_patterns_de + bot_patterns_en:
         m = re.search(pat, text)
         if m:
             val = int(m.group(1))
             if val not in gb_numbers and 600 <= val <= 2000:
                 return val
 
-    # Wenn KEIN echtes Gegenangebot → KEIN Preis anzeigen
-    # (z. B. bei rhetorischen Fragen)
     return None
 
 
