@@ -760,14 +760,18 @@ if user_input and not st.session_state["closed"]:
         "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
     })
 
+    # 👉 HIER WAR DER FEHLER
     if decision == "abort":
-    msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
-    log_result(st.session_state["session_id"], False, None, msg_count)
-
+        msg_count = len([
+            m for m in st.session_state["history"]
+            if m["role"] in ("user", "assistant")
+        ])
+        log_result(st.session_state["session_id"], False, None, msg_count)
 
     # Bot-Gegenangebot extrahieren
     bot_offer = extract_price_from_bot(bot_text)
     st.session_state["bot_offer"] = bot_offer
+
 
 
 
