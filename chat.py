@@ -48,6 +48,23 @@ if "agreed_price" not in st.session_state:
 if "closed" not in st.session_state:
     st.session_state["closed"] = False  # Ob die Verhandlung abgeschlossen ist
 
+
+# -----------------------------
+# [NEGOTIATION CONTROL STATE]
+# -----------------------------
+if "repeat_offer_count" not in st.session_state:
+    st.session_state.repeat_offer_count = 0
+
+if "small_step_count" not in st.session_state:
+    st.session_state.small_step_count = 0
+
+if "last_user_price" not in st.session_state:
+    st.session_state.last_user_price = None
+
+if "warning_given" not in st.session_state:
+    st.session_state.warning_given = False
+
+
 # -----------------------------
 # [SECRETS & MODELL]
 # -----------------------------
@@ -186,6 +203,73 @@ if "params" not in st.session_state:
 PRICE_RE = re.compile(r"(?:€\s*)?(\d{2,5})")
 def extract_prices(text: str):
     return [int(m.group(1)) for m in PRICE_RE.finditer(text)]
+
+# -----------------------------
+# [HARTE BELEIDIGUNGEN – NUR ECHTE VERLETZUNGEN]
+# -----------------------------
+INSULT_PATTERNS = [
+    r"\b(fotze|hurensohn|wichser|arschloch|missgeburt)\b",
+    r"\b(verpiss dich|halt die fresse)\b",
+    r"\b(drecks(?:bot|kerl|typ))\b",
+]
+
+
+def check_abort_conditions(user_text: str, user_price: int | None):
+    for pat in INSULT_PATTERNS:
+        if re.search(pat, user_text.lower()):
+            return "abort", (
+                "Das Gespräch ist beendet. "
+                "Diese Art der Sprache akzeptiere ich nicht."
+            )
+
+    if user_price is None:
+        return "ok", None
+
+    last_price = st.session_state.last_user_price
+    bot_offer = st.session_state.get("bot_offer")
+
+    if last_price == user_price:
+        st.session_state.repeat_offer_count += 1
+    else:
+        st.session_state.repeat_offer_count = 0
+
+    if st.session_state.repeat_offer_count == 1:
+        return "warn", "Du wiederholst dein Angebot. Das registriere ich."
+    if st.session_state.repeat_offer_count >= 2:
+        return "abort", (
+            "Du bewegst dich keinen Schritt. "
+            "Unter diesen Bedingungen ist die Verhandlung beendet."
+        )
+
+    if last_price and user_price < last_price:
+        if not st.session_state.warning_given:
+            st.session_state.warning_given = True
+            return "warn", (
+                "Du gehst preislich zurück. "
+                "Das ist kein ernsthafter Verhandlungsansatz."
+            )
+        return "abort", (
+            "Rückschritte akzeptiere ich nicht. "
+            "Verhandlung beendet."
+        )
+
+    if bot_offer and (bot_offer - user_price) > 20:
+        if last_price and (user_price - last_price) < 3:
+            st.session_state.small_step_count += 1
+        else:
+            st.session_state.small_step_count = 0
+
+        if st.session_state.small_step_count == 2:
+            return "warn", "Diese Mini-Schritte bringen uns nicht weiter."
+        if st.session_state.small_step_count >= 3:
+            return "abort", (
+                "Du spielst auf Zeit. "
+                "Ich beende das hier."
+            )
+
+    st.session_state.last_user_price = user_price
+    return "ok", None
+
 
 # -----------------------------
 # [SYSTEM-PROMPT KONSTRUKTION – LLM EINBINDUNG]
@@ -653,8 +737,21 @@ if user_input and not st.session_state["closed"]:
         for m in st.session_state["history"]
     ]
 
-    # KI-Antwort generieren
-    bot_text = generate_reply(llm_history, st.session_state.params)
+    # Nutzerpreis extrahieren
+    nums = re.findall(r"\d{2,5}", user_input)
+    user_price = int(nums[0]) if nums else None
+
+    decision, msg = check_abort_conditions(user_input, user_price)
+
+    if decision == "warn":
+        bot_text = msg
+
+    elif decision == "abort":
+        st.session_state["closed"] = True
+        bot_text = msg
+
+    else:
+        bot_text = generate_reply(llm_history, st.session_state.params)
 
     # Bot-Nachricht speichern
     st.session_state["history"].append({
@@ -662,6 +759,11 @@ if user_input and not st.session_state["closed"]:
         "text": bot_text,
         "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
     })
+
+    if decision == "abort":
+    msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
+    log_result(st.session_state["session_id"], False, None, msg_count)
+
 
     # Bot-Gegenangebot extrahieren
     bot_offer = extract_price_from_bot(bot_text)
