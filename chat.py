@@ -253,18 +253,13 @@ def check_abort_conditions(user_text: str, user_price: int | None):
             "Verhandlung beendet."
         )
 
+    # 3️⃣ Mini-Erhöhungen trotz großer Distanz → sofortiger Abbruch
     if bot_offer and (bot_offer - user_price) > 20:
-        if last_price and (user_price - last_price) < 3:
-            st.session_state.small_step_count += 1
-        else:
-            st.session_state.small_step_count = 0
-
-        if st.session_state.small_step_count == 2:
-            return "warn", "Diese Mini-Schritte bringen uns nicht weiter."
-        if st.session_state.small_step_count >= 3:
+        if last_price and (user_price - last_price) < 4:
             return "abort", (
-                "Du spielst auf Zeit. "
-                "Ich beende das hier."
+                "Du bist deutlich vom Preis entfernt "
+                "und erhöhst nur minimal. "
+                "So verhandle ich nicht weiter."
             )
 
     st.session_state.last_user_price = user_price
