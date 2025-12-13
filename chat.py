@@ -282,13 +282,13 @@ def check_abort_conditions(user_text: str, user_price: int | None):
         )
 
     # 3️⃣ Mini-Erhöhungen trotz großer Distanz → 1x Warnung, 2x Abbruch
-    if bot_offer and last_price:
+    if bot_offer and last_price is not None:
 
         price_gap = bot_offer - user_price
         step = user_price - last_price
 
-        if price_gap > 20 and step < 4:
-
+        if price_gap > 20 and step < 4 and step > 0:
+            # wieder nur ein Mini-Schritt
             st.session_state.small_step_count += 1
 
             if st.session_state.small_step_count == 1:
@@ -302,11 +302,13 @@ def check_abort_conditions(user_text: str, user_price: int | None):
                 return "abort", (
                     "Ich habe dich bereits darauf hingewiesen. "
                     "Du erhöhst erneut nur minimal bei großem Abstand. "
-                    "So beende ich die Verhandlung."
+                    "Unter diesen Bedingungen beende ich die Verhandlung."
                 )
 
         else:
-            # Reset, sobald der Nutzer sinnvoll erhöht ODER der Abstand kleiner wird
+            # Reset NUR wenn:
+            # - Schritt ≥ 4 € ODER
+            # - Abstand nicht mehr groß ist
             st.session_state.small_step_count = 0
 
     st.session_state.last_user_price = user_price
