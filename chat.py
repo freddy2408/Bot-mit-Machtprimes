@@ -49,10 +49,8 @@ if "agreed_price" not in st.session_state:
 if "closed" not in st.session_state:
     st.session_state["closed"] = False  # Ob die Verhandlung abgeschlossen ist
 
-if "last_fixed_bot_offer" not in st.session_state:
-    st.session_state["last_fixed_bot_offer"] = None
-
-
+if "final_bot_price" not in st.session_state:
+    st.session_state["final_bot_price"] = None
 
 # -----------------------------
 # [NEGOTIATION CONTROL STATE]
@@ -467,21 +465,14 @@ def generate_reply(history, params: dict) -> str:
     # KORREKTUR: nur Speichergröße
     raw_llm_reply = re.sub(WRONG_CAPACITY_PATTERN, "256 GB", raw_llm_reply, flags=re.IGNORECASE)
 
-    # USERPREIS EXTRAHIEREN (aus letzter User-Nachricht)
     last_user_msg = next((m["content"] for m in reversed(history) if m["role"] == "user"), "")
     nums = re.findall(r"\d{2,5}", last_user_msg)
     user_price = int(nums[0]) if nums else None
 
-    # FALL: KEIN PREIS → einfach LLM-Antwort
+
+    # USERPREIS
     if user_price is None:
         return raw_llm_reply
-
-    fixed = st.session_state.get("last_fixed_bot_offer")
-
-    if fixed is not None and user_price is not None:
-        if user_price < fixed:
-            return f"{fixed} € ist der festgelegte Preis. Darunter gehe ich nicht."
-
 
     # LETZTES BOT-GEGENANGEBOT (aus LLM-History, nicht UI)
     last_bot_offer = None
@@ -492,8 +483,21 @@ def generate_reply(history, params: dict) -> str:
                 last_bot_offer = int(matches[-1])
             break
 
-    # Anzahl Bot-Nachrichten für Phasenlogik
-    msg_count = sum(1 for m in history if m["role"] == "assistant")
+    # echte Preisrunden zählen
+    msg_count = sum(
+        1 for m in history
+        if m["role"] == "assistant" and extract_price_from_bot(m["content"]) is not None
+    )
+
+    # finalisieren nach 4 echten Runden
+    if msg_count >= 4 and st.session_state["final_bot_price"] is None:
+        if last_bot_offer is not None:
+            st.session_state["final_bot_price"] = last_bot_offer
+
+    fixed = st.session_state.get("final_bot_price")
+
+    if fixed is not None and user_price < fixed:
+        return f"{fixed} € ist der endgültige Preis. Darunter gehe ich nicht."
 
     # ---- PREISBERECHNUNGS-UTILS -------------------------------------
 
@@ -808,7 +812,7 @@ if user_input and not st.session_state["closed"]:
     decision, msg = check_abort_conditions(user_input, user_price)
 
     # 🔥 1) DEAL-AKZEPTANZ VOR ALLEM ANDEREN
-    fixed_price = st.session_state.get("last_fixed_bot_offer")
+    fixed_price = st.session_state.get("final_bot_price")
 
     if fixed_price and user_accepts_price(user_input, fixed_price):
         st.session_state["closed"] = True
@@ -849,10 +853,6 @@ if user_input and not st.session_state["closed"]:
 
     # 🔥 5) Bot-Angebot extrahieren & fixieren
     bot_offer = extract_price_from_bot(bot_text)
-
-    if bot_offer is not None:
-        st.session_state["last_fixed_bot_offer"] = bot_offer
-
     st.session_state["bot_offer"] = bot_offer
 
 
