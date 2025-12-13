@@ -49,6 +49,10 @@ if "agreed_price" not in st.session_state:
 if "closed" not in st.session_state:
     st.session_state["closed"] = False  # Ob die Verhandlung abgeschlossen ist
 
+if "last_fixed_bot_offer" not in st.session_state:
+    st.session_state["last_fixed_bot_offer"] = None
+
+
 
 # -----------------------------
 # [NEGOTIATION CONTROL STATE]
@@ -293,6 +297,33 @@ def check_abort_conditions(user_text: str, user_price: int | None):
 
 
 # -----------------------------
+# [HELPER: Nutzer akzeptiert Bot-Preis]
+# -----------------------------
+def user_accepts_price(user_text: str, bot_price: int) -> bool:
+    if bot_price is None:
+        return False
+
+    text = user_text.lower()
+
+    accept_words = [
+        "deal",
+        "einverstanden",
+        "passt",
+        "ok",
+        "okay",
+        "nehme ich",
+        "akzeptiere",
+        "verstanden",
+    ]
+
+    if not any(w in text for w in accept_words):
+        return False
+
+    nums = re.findall(r"\d{2,5}", text)
+    return not nums or int(nums[0]) == bot_price
+
+
+# -----------------------------
 # [SYSTEM-PROMPT KONSTRUKTION – LLM EINBINDUNG]
 # -----------------------------
 
@@ -444,6 +475,13 @@ def generate_reply(history, params: dict) -> str:
     # FALL: KEIN PREIS → einfach LLM-Antwort
     if user_price is None:
         return raw_llm_reply
+
+    fixed = st.session_state.get("last_fixed_bot_offer")
+
+    if fixed is not None and user_price is not None:
+        if user_price < fixed:
+            return f"{fixed} € ist der festgelegte Preis. Darunter gehe ich nicht."
+
 
     # LETZTES BOT-GEGENANGEBOT (aus LLM-History, nicht UI)
     last_bot_offer = None
@@ -688,8 +726,8 @@ def extract_price_from_bot(msg: str) -> int | None:
         r"ich\s+bleibe\s+(?:dabei|bei)[^0-9]*(\d{2,5})",
         r"entscheidung[^0-9]*(\d{2,5})",
         r"das\s+ist\s+mein\s+preis[^0-9]*(\d{2,5})",
-        r"biete(?:\s+ihnen)?[^0-9]*(\d{2,5})\s*€",  # 🔥 DAS FEHLTE
-        r"(\d{2,5})\s*€",                           # 🔥 Sicherheitsnetz
+        r"biete(?:\s+ihnen)?[^0-9]*(\d{2,5})\s*€",
+        r"(\d{2,5})\s*€",
     ]
 
 
@@ -769,6 +807,21 @@ if user_input and not st.session_state["closed"]:
 
     decision, msg = check_abort_conditions(user_input, user_price)
 
+    # 🔥 1) DEAL-AKZEPTANZ VOR ALLEM ANDEREN
+    fixed_price = st.session_state.get("last_fixed_bot_offer")
+
+    if fixed_price and user_accepts_price(user_input, fixed_price):
+        st.session_state["closed"] = True
+
+        msg_count = len([
+            m for m in st.session_state["history"]
+            if m["role"] in ("user", "assistant")
+        ])
+
+        log_result(st.session_state["session_id"], True, fixed_price, msg_count)
+        run_survey_and_stop()
+
+    # 🔥 2) NORMALE ENTSCHEIDUNGSLOGIK
     if decision == "warn":
         bot_text = msg
 
@@ -779,14 +832,14 @@ if user_input and not st.session_state["closed"]:
     else:
         bot_text = generate_reply(llm_history, st.session_state.params)
 
-    # Bot-Nachricht speichern
+    # 🔥 3) BOT-NACHRICHT SPEICHERN
     st.session_state["history"].append({
         "role": "assistant",
         "text": bot_text,
         "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
     })
 
-    # 👉 HIER WAR DER FEHLER
+    # 🔥 4) Abbruch loggen (falls nötig)
     if decision == "abort":
         msg_count = len([
             m for m in st.session_state["history"]
@@ -794,11 +847,13 @@ if user_input and not st.session_state["closed"]:
         ])
         log_result(st.session_state["session_id"], False, None, msg_count)
 
-    # Bot-Gegenangebot extrahieren
+    # 🔥 5) Bot-Angebot extrahieren & fixieren
     bot_offer = extract_price_from_bot(bot_text)
+
+    if bot_offer is not None:
+        st.session_state["last_fixed_bot_offer"] = bot_offer
+
     st.session_state["bot_offer"] = bot_offer
-
-
 
 
 # 4) Chat-Verlauf anzeigen (inkl. frischer Bot-Antwort) 
