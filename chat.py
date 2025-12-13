@@ -962,9 +962,11 @@ if not st.session_state["closed"]:
 # [ADMIN-BEREICH: Ergebnisse (privat)]
 # -----------------------------
 st.sidebar.header("📊 Ergebnisse")
+
 pwd_ok = False
 dashboard_password = st.secrets.get("DASHBOARD_PASSWORD", os.environ.get("DASHBOARD_PASSWORD"))
 pwd_input = st.sidebar.text_input("Passwort für Dashboard", type="password")
+
 if dashboard_password:
     if pwd_input and pwd_input == dashboard_password:
         pwd_ok = True
@@ -976,19 +978,40 @@ else:
 if pwd_ok:
     st.sidebar.success("Zugang gewährt.")
 
-    with st.sidebar.expander("Alle Verhandlungsergebnisse", expanded=True):
+    # =============================
+    # 📋 Umfrageergebnisse
+    # =============================
+    with st.sidebar.expander("📋 Umfrageergebnisse", expanded=False):
+        if os.path.exists("survey_results.xlsx"):
+            df_s = pd.read_excel("survey_results.xlsx")
+            st.dataframe(df_s, use_container_width=True)
 
+            from io import BytesIO
+            buf = BytesIO()
+            df_s.to_excel(buf, index=False)
+            buf.seek(0)
+
+            st.download_button(
+                "Umfrage als Excel herunterladen",
+                buf,
+                file_name="survey_results_download.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        else:
+            st.info("Noch keine Umfrage-Daten vorhanden.")
+
+    # =============================
+    # 📊 Verhandlungsergebnisse
+    # =============================
+    with st.sidebar.expander("Alle Verhandlungsergebnisse", expanded=True):
         df = load_results_df()
 
         if len(df) == 0:
             st.write("Noch keine Ergebnisse gespeichert.")
-
         else:
-            # neue Nummerierung hinzufügen (1, 2, 3, ...)
             df = df.reset_index(drop=True)
             df["nr"] = df.index + 1
-
-            # schönere Reihenfolge
             df = df[["nr", "ts", "session_id", "deal", "price", "msg_count"]]
 
             st.dataframe(df, use_container_width=True, hide_index=True)
@@ -1005,6 +1028,7 @@ if pwd_ok:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
+
 
 # ----------------------------
 # Admin Reset mit Bestätigung
