@@ -144,7 +144,7 @@ st.markdown(f"""
 
 <div class="header-flex">
     <img src="data:image/png;base64,{ipad_b64}" class="header-img">
-    <div class="header-title">iPad-Verhandlung – mit Machtprimes</div>
+    <div class="header-title">iPad-Verhandlung</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -233,14 +233,13 @@ def extract_prices(text: str):
     return [int(m.group(1)) for m in PRICE_RE.finditer(text)]
 
 # -----------------------------
-# [HARTE BELEIDIGUNGEN – NUR ECHTE VERLETZUNGEN]
+# ABBRECHEN DER VERHANDLUNG
 # -----------------------------
 INSULT_PATTERNS = [
     r"\b(fotze|hurensohn|wichser|arschloch|missgeburt)\b",
     r"\b(verpiss dich|halt die fresse)\b",
     r"\b(drecks(?:bot|kerl|typ))\b",
 ]
-
 
 def check_abort_conditions(user_text: str, user_price: int | None):
     for pat in INSULT_PATTERNS:
