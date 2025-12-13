@@ -670,23 +670,28 @@ def load_results_df() -> pd.DataFrame:
 def extract_price_from_bot(msg: str) -> int | None:
     text = msg.lower()
 
-    # Nie Speichergrößen als Preis interpretieren
+    # Speichergrößen ausschließen
     gb_numbers = re.findall(r"(\d{2,5})\s*gb", text)
     gb_numbers = {int(x) for x in gb_numbers}
 
-    # Muster für echte Gegenangebote – NUR der Bot nutzt diese Formulierungen
+    # 1) Explizite Euro-Angaben
+    euro_matches = re.findall(r"(\d{2,5})\s*€", text)
+    for m in euro_matches[::-1]:
+        val = int(m)
+        if val not in gb_numbers and 600 <= val <= 2000:
+            return val
+
+    # 2) Dominante Sprachmuster (erweitert)
     bot_patterns = [
         r"gegenangebot\s*:?[^0-9]*(\d{2,5})",
-        r"setze\s+(\d{2,5})\s*€",
-        r"mein(?:\s+preis)?\s+liegt\s+bei\s+(\d{2,5})",
-        r"ich\s+liege\s+bei\s+(\d{2,5})",
-        r"ich\s+bleibe\s+bei\s+(\d{2,5})",
-        r"ich\s+stelle\s+(\d{2,5})\s*€",
-        r"ich\s+setze\s+(\d{2,5})\s*€",
-        r"angebot\s*:?[^0-9]*(\d{2,5})",
+        r"preis[^0-9]*(\d{2,5})",
+        r"ich\s+bleibe\s+(?:dabei|bei)[^0-9]*(\d{2,5})",
+        r"entscheidung[^0-9]*(\d{2,5})",
+        r"mehr\s+gibt\s+es\s+nicht[^0-9]*(\d{2,5})",
+        r"das\s+ist\s+mein\s+preis[^0-9]*(\d{2,5})",
+        r"(\d{2,5})\s*\.?$",  # Zahl am Satzende (sehr wichtig!)
     ]
 
-    # Suche zuerst nach echten Gegenangeboten
     for pat in bot_patterns:
         m = re.search(pat, text)
         if m:
@@ -694,14 +699,13 @@ def extract_price_from_bot(msg: str) -> int | None:
             if val not in gb_numbers and 600 <= val <= 2000:
                 return val
 
-    # Wenn KEIN echtes Gegenangebot → KEIN Preis anzeigen
-    # (z. B. bei rhetorischen Fragen)
+    # 3) LETZTER FALLBACK: letzte plausible Zahl im Text
+    nums = [int(x) for x in re.findall(r"\d{2,5}", text)]
+    for n in nums[::-1]:
+        if n not in gb_numbers and 600 <= n <= 2000:
+            return n
+
     return None
-
-
-
-
-
 
 # -----------------------------
 # [Szenario-Kopf]
