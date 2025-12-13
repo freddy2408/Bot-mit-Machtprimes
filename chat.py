@@ -825,6 +825,24 @@ if user_input and not st.session_state["closed"]:
 
     decision, msg = check_abort_conditions(user_input, user_price)
 
+    if decision == "abort":
+        st.session_state["closed"] = True
+
+        st.session_state["history"].append({
+            "role": "assistant",
+            "text": msg,
+            "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
+        })
+
+        msg_count = len([
+            m for m in st.session_state["history"]
+            if m["role"] in ("user", "assistant")
+        ])
+
+        log_result(st.session_state["session_id"], False, None, msg_count)
+        run_survey_and_stop()
+
+
     # 🔥 1) DEAL-AKZEPTANZ VOR ALLEM ANDEREN
     bot_offer = st.session_state.get("bot_offer")
 
@@ -844,25 +862,6 @@ if user_input and not st.session_state["closed"]:
     # 🔥 2) NORMALE ENTSCHEIDUNGSLOGIK
     if decision == "warn":
         bot_text = msg
-
-    elif decision == "abort":
-        st.session_state["closed"] = True
-        bot_text = msg
-
-        # 🔴 WICHTIG: HIER SOFORT ABBRECHEN
-        st.session_state["history"].append({
-            "role": "assistant",
-            "text": bot_text,
-            "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
-        })
-
-        msg_count = len([
-            m for m in st.session_state["history"]
-            if m["role"] in ("user", "assistant")
-        ])
-
-        log_result(st.session_state["session_id"], False, None, msg_count)
-        run_survey_and_stop()
 
     else:
         bot_text = generate_reply(llm_history, st.session_state.params)
