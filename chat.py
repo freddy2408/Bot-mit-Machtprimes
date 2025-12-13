@@ -275,27 +275,28 @@ def check_abort_conditions(user_text: str, user_price: int | None):
             return "warn", (
                 "Du gehst preislich zurück. "
                 "Das ist kein ernsthafter Verhandlungsansatz."
+                "Machen Sie ein vernünftiges Angebot, ansonsten ist die Verhandlung hier beendet!"
             )
         return "abort", (
             "Rückschritte akzeptiere ich nicht. "
             "Verhandlung beendet."
         )
 
-    # 3️⃣ Mini-Erhöhungen trotz großer Distanz → 1x Warnung, 2x Abbruch
+    # 3️⃣ Mini-Erhöhungen trotz großer Distanz → Warnung → Abbruch
     if bot_offer and last_price is not None:
 
         price_gap = bot_offer - user_price
         step = user_price - last_price
 
-        if price_gap > 20 and step < 4 and step > 0:
-            # wieder nur ein Mini-Schritt
+        if price_gap > 20 and 0 < step < 4:
             st.session_state.small_step_count += 1
 
             if st.session_state.small_step_count == 1:
                 return "warn", (
-                    "Du bist deutlich vom Preis entfernt "
-                    "und erhöhst nur minimal. "
+                    "Sie sind deutlich vom Preis entfernt "
+                    "und erhöhen nur minimal. "
                     "Das registriere ich."
+                    "Machen Sie ein vernünftiges Angebot, ansonsten ist die Verhandlung hier beendet!"
                 )
 
             if st.session_state.small_step_count >= 2:
@@ -305,11 +306,10 @@ def check_abort_conditions(user_text: str, user_price: int | None):
                     "Unter diesen Bedingungen beende ich die Verhandlung."
                 )
 
-        else:
-            # Reset NUR wenn:
-            # - Schritt ≥ 4 € ODER
-            # - Abstand nicht mehr groß ist
+        # 🔑 RESET NUR, WENN WIRKLICH SINNVOLL ERHÖHT WIRD
+        if step >= 4 or price_gap <= 20:
             st.session_state.small_step_count = 0
+
 
     st.session_state.last_user_price = user_price
     return "ok", None
