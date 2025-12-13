@@ -291,6 +291,10 @@ def check_abort_conditions(user_text: str, user_price: int | None):
         if price_gap > 20 and 0 < step < 4:
             st.session_state.small_step_count += 1
 
+            # ✅ WICHTIG: last_user_price schon hier updaten,
+            # damit die NÄCHSTE Erhöhung korrekt auf dem letzten Angebot basiert
+            st.session_state.last_user_price = user_price
+
             if st.session_state.small_step_count == 1:
                 return "warn", (
                     "Sie sind deutlich vom Preis entfernt "
@@ -299,17 +303,15 @@ def check_abort_conditions(user_text: str, user_price: int | None):
                     "Machen Sie ein vernünftiges Angebot, ansonsten ist die Verhandlung hier beendet!"
                 )
 
-            if st.session_state.small_step_count >= 2:
-                return "abort", (
-                    "Ich habe dich bereits darauf hingewiesen. "
-                    "Du erhöhst erneut nur minimal bei großem Abstand. "
-                    "Unter diesen Bedingungen beende ich die Verhandlung."
-                )
+            return "abort", (
+                "Ich habe dich bereits darauf hingewiesen. "
+                "Du erhöhst erneut nur minimal bei großem Abstand. "
+                "Unter diesen Bedingungen beende ich die Verhandlung."
+            )
 
-        # 🔑 RESET NUR, WENN WIRKLICH SINNVOLL ERHÖHT WIRD
+        # Reset nur, wenn sinnvoll erhöht ODER Abstand klein genug ist
         if step >= 4 or price_gap <= 20:
             st.session_state.small_step_count = 0
-
 
     st.session_state.last_user_price = user_price
     return "ok", None
