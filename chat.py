@@ -882,8 +882,10 @@ if user_input and not st.session_state["closed"]:
         log_result(st.session_state["session_id"], False, None, msg_count)
 
     # 🔥 5) Bot-Angebot extrahieren & fixieren
-    bot_offer = extract_price_from_bot(bot_text)
-    st.session_state["bot_offer"] = bot_offer
+    new_offer = extract_price_from_bot(bot_text)
+
+    if new_offer is not None:
+        st.session_state["bot_offer"] = new_offer
 
 
 # 4) Chat-Verlauf anzeigen (inkl. frischer Bot-Antwort) 
