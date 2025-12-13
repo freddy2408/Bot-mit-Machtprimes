@@ -687,10 +687,11 @@ def extract_price_from_bot(msg: str) -> int | None:
         r"preis[^0-9]*(\d{2,5})",
         r"ich\s+bleibe\s+(?:dabei|bei)[^0-9]*(\d{2,5})",
         r"entscheidung[^0-9]*(\d{2,5})",
-        r"mehr\s+gibt\s+es\s+nicht[^0-9]*(\d{2,5})",
         r"das\s+ist\s+mein\s+preis[^0-9]*(\d{2,5})",
-        r"(\d{2,5})\s*\.?$",  # Zahl am Satzende (sehr wichtig!)
+        r"biete(?:\s+ihnen)?[^0-9]*(\d{2,5})\s*€",  # 🔥 DAS FEHLTE
+        r"(\d{2,5})\s*€",                           # 🔥 Sicherheitsnetz
     ]
+
 
     for pat in bot_patterns:
         m = re.search(pat, text)
