@@ -281,32 +281,36 @@ def check_abort_conditions(user_text: str, user_price: int | None):
             "Verhandlung beendet."
         )
 
-    # 3️⃣ Mini-Erhöhungen trotz großer Distanz → Warnung → Abbruch
-    if bot_offer and (bot_offer - user_price) > 20:
-        if last_price and (user_price - last_price) < 4:
+    # 3️⃣ Mini-Erhöhungen trotz großer Distanz → 1x Warnung, 2x Abbruch
+    if bot_offer and last_price:
+
+        price_gap = bot_offer - user_price
+        step = user_price - last_price
+
+        if price_gap > 20 and step < 4:
 
             st.session_state.small_step_count += 1
 
             if st.session_state.small_step_count == 1:
                 return "warn", (
-                    "Du bist noch weit vom Preis entfernt "
+                    "Du bist deutlich vom Preis entfernt "
                     "und erhöhst nur minimal. "
-                    "So kommen wir nicht voran."
+                    "Das registriere ich."
                 )
 
-            return "abort", (
-                "Ich habe dich darauf hingewiesen. "
-                "Du erhöhst erneut nur minimal, obwohl der Abstand groß ist. "
-                "Unter diesen Bedingungen beende ich die Verhandlung."
-            )
-    else:
-        # Reset, sobald der Nutzer wieder sinnvoll erhöht
-        st.session_state.small_step_count = 0
+            if st.session_state.small_step_count >= 2:
+                return "abort", (
+                    "Ich habe dich bereits darauf hingewiesen. "
+                    "Du erhöhst erneut nur minimal bei großem Abstand. "
+                    "So beende ich die Verhandlung."
+                )
 
+        else:
+            # Reset, sobald der Nutzer sinnvoll erhöht ODER der Abstand kleiner wird
+            st.session_state.small_step_count = 0
 
     st.session_state.last_user_price = user_price
     return "ok", None
-
 
 # -----------------------------
 # [HELPER: Nutzer akzeptiert Bot-Preis]
