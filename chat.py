@@ -483,21 +483,7 @@ def generate_reply(history, params: dict) -> str:
                 last_bot_offer = int(matches[-1])
             break
 
-    # echte Preisrunden zählen
-    msg_count = sum(
-        1 for m in history
-        if m["role"] == "assistant" and extract_price_from_bot(m["content"]) is not None
-    )
-
-    # finalisieren nach 4 echten Runden
-    if msg_count >= 4 and st.session_state["final_bot_price"] is None:
-        if last_bot_offer is not None:
-            st.session_state["final_bot_price"] = last_bot_offer
-
     fixed = st.session_state.get("final_bot_price")
-
-    if fixed is not None and user_price < fixed:
-        return f"{fixed} € ist der endgültige Preis. Darunter gehe ich nicht."
 
     # ---- PREISBERECHNUNGS-UTILS -------------------------------------
 
@@ -812,9 +798,10 @@ if user_input and not st.session_state["closed"]:
     decision, msg = check_abort_conditions(user_input, user_price)
 
     # 🔥 1) DEAL-AKZEPTANZ VOR ALLEM ANDEREN
-    fixed_price = st.session_state.get("final_bot_price")
+    bot_offer = st.session_state.get("bot_offer")
 
-    if fixed_price and user_accepts_price(user_input, fixed_price):
+    if bot_offer and user_accepts_price(user_input, bot_offer):
+        st.session_state["final_bot_price"] = bot_offer
         st.session_state["closed"] = True
 
         msg_count = len([
@@ -822,8 +809,9 @@ if user_input and not st.session_state["closed"]:
             if m["role"] in ("user", "assistant")
         ])
 
-        log_result(st.session_state["session_id"], True, fixed_price, msg_count)
+        log_result(st.session_state["session_id"], True, bot_offer, msg_count)
         run_survey_and_stop()
+
 
     # 🔥 2) NORMALE ENTSCHEIDUNGSLOGIK
     if decision == "warn":
