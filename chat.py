@@ -281,14 +281,28 @@ def check_abort_conditions(user_text: str, user_price: int | None):
             "Verhandlung beendet."
         )
 
-    # 3️⃣ Mini-Erhöhungen trotz großer Distanz → sofortiger Abbruch
+    # 3️⃣ Mini-Erhöhungen trotz großer Distanz → Warnung → Abbruch
     if bot_offer and (bot_offer - user_price) > 20:
         if last_price and (user_price - last_price) < 4:
+
+            st.session_state.small_step_count += 1
+
+            if st.session_state.small_step_count == 1:
+                return "warn", (
+                    "Du bist noch weit vom Preis entfernt "
+                    "und erhöhst nur minimal. "
+                    "So kommen wir nicht voran."
+                )
+
             return "abort", (
-                "Du bist deutlich vom Preis entfernt "
-                "und erhöhst nur minimal. "
-                "So verhandle ich nicht weiter."
+                "Ich habe dich darauf hingewiesen. "
+                "Du erhöhst erneut nur minimal, obwohl der Abstand groß ist. "
+                "Unter diesen Bedingungen beende ich die Verhandlung."
             )
+    else:
+        # Reset, sobald der Nutzer wieder sinnvoll erhöht
+        st.session_state.small_step_count = 0
+
 
     st.session_state.last_user_price = user_price
     return "ok", None
@@ -885,7 +899,7 @@ if not st.session_state["closed"]:
     # DEAL-BUTTON
     with deal_col1:
         if st.button(
-            f"💚 Deal bestätigen: {bot_offer} €" if show_deal else "Deal bestätigen",
+            f"✅ Deal bestätigen: {bot_offer} €" if show_deal else "Deal bestätigen",
             disabled=not show_deal,
             use_container_width=True
         ):
@@ -997,4 +1011,3 @@ if pwd_ok:
                 st.session_state["confirm_delete"] = False
                 st.sidebar.success("Alle Ergebnisse wurden gelöscht.")
                 st.experimental_rerun()
-
