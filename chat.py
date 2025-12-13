@@ -488,6 +488,12 @@ def generate_reply(history, params: dict) -> str:
     if user_price is None:
         return raw_llm_reply
 
+    # Anzahl bisheriger Bot-Nachrichten (für Phasenlogik)
+    msg_count = sum(
+        1 for m in history
+        if m["role"] == "assistant"
+    )
+
     # LETZTES BOT-GEGENANGEBOT (aus LLM-History, nicht UI)
     last_bot_offer = None
     for m in reversed(history):
