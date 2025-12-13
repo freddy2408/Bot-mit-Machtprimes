@@ -11,6 +11,7 @@ import time
 import sqlite3
 import base64
 import pytz
+from survey import show_survey
 from power_primes import (
     HARD_OPENERS,
     PRIMES_AUTORITAET,
@@ -65,6 +66,33 @@ if "warning_given" not in st.session_state:
     st.session_state.warning_given = False
 
 
+# ----------------------------
+# Fragebogen (nur nach Abschluss)
+# ----------------------------
+from survey import show_survey
+
+def run_survey_and_stop():
+    survey_data = show_survey()
+
+    if survey_data:
+        SURVEY_FILE = "survey_results.xlsx"
+
+        if os.path.exists(SURVEY_FILE):
+            df_old = pd.read_excel(SURVEY_FILE)
+            df = pd.concat([df_old, pd.DataFrame([survey_data])], ignore_index=True)
+        else:
+            df = pd.DataFrame([survey_data])
+
+        df.to_excel(SURVEY_FILE, index=False)
+        st.success("Vielen Dank! Ihre Antworten wurden gespeichert.")
+
+    st.stop()
+
+# Wenn die Verhandlung bereits geschlossen wurde → sofort Fragebogen
+if st.session_state["closed"]:
+    run_survey_and_stop()
+  
+
 # -----------------------------
 # [SECRETS & MODELL]
 # -----------------------------
@@ -72,9 +100,7 @@ API_KEY = st.secrets["OPENAI_API_KEY"]
 MODEL  = st.secrets.get("OPENAI_MODEL", "gpt-4o-mini")
 ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD")
 
-# -----------------------------
-# [UI: Layout & Styles]
-# -----------------------------
+
 # -----------------------------
 # [UI: Layout & Styles + Titel mit Bild]
 # -----------------------------
@@ -801,49 +827,43 @@ for item in st.session_state["history"]:
 
 
 # 5) Deal bestätigen / Verhandlung beenden
-deal_col1, deal_col2 = st.columns([1, 1])
+if not st.session_state["closed"]:
 
-bot_offer = st.session_state.get("bot_offer", None)
-show_deal = (bot_offer is not None) and not st.session_state.get("closed", False)
+    deal_col1, deal_col2 = st.columns([1, 1])
 
-with deal_col1:
-    confirm = st.button(
-        f"💚 Deal bestätigen: {bot_offer} €" if show_deal else "Deal bestätigen",
-        use_container_width=True,
-        disabled=not show_deal
-    )
+    bot_offer = st.session_state.get("bot_offer", None)
+    show_deal = (bot_offer is not None)
 
-with deal_col2:
-    cancel = st.button(
-        "❌ Verhandlung beenden",
-        use_container_width=True,
-    ) if not st.session_state.get("closed", False) else False
+    # DEAL-BUTTON
+    with deal_col1:
+        if st.button(
+            f"💚 Deal bestätigen: {bot_offer} €" if show_deal else "Deal bestätigen",
+            disabled=not show_deal,
+            use_container_width=True
+        ):
+            bot_price = st.session_state.get("bot_offer")
+            msg_count = len([
+                m for m in st.session_state["history"]
+                if m["role"] in ("user", "assistant")
+            ])
+            log_result(st.session_state["session_id"], True, bot_price, msg_count)
 
+            st.session_state["closed"] = True
+            run_survey_and_stop()
 
+    # ABBRUCH-BUTTON
+    with deal_col2:
+        if st.button("❌ Verhandlung beenden", use_container_width=True):
 
-# 7) Deal-Bestätigung → Ergebnis speichern
-if confirm and not st.session_state["closed"]:
-    st.session_state["closed"] = True
+            msg_count = len([
+                m for m in st.session_state["history"]
+                if m["role"] in ("user", "assistant")
+            ])
 
-    bot_price = st.session_state.get("bot_offer")
-    msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
+            log_result(st.session_state["session_id"], False, None, msg_count)
 
-    log_result(st.session_state["session_id"], True, bot_price, msg_count)
-
-    st.success(f"Deal bestätigt: {bot_price} €. Die Verhandlung ist abgeschlossen.")
-    st.stop()
-
-
-# 8) Verhandlung ohne Einigung beenden
-if cancel and not st.session_state["closed"]:
-    st.session_state["closed"] = True
-
-    msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
-
-    log_result(st.session_state["session_id"], False, None, msg_count)
-
-    st.info("Verhandlung beendet – ohne Einigung.")
-    st.stop()
+            st.session_state["closed"] = True
+            run_survey_and_stop()
 
 
 # -----------------------------
