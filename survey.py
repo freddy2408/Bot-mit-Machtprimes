@@ -22,7 +22,7 @@ def show_survey():
 
     gender = st.radio(
         "",
-        ["männlich", "weiblich", "divers", "keine Angabe"],
+        ["männlich", "weiblich", "divers",],
         index=None,
         horizontal=True,
         label_visibility="collapsed",
@@ -44,8 +44,8 @@ def show_survey():
             "Allgemeine Hochschulreife (Abitur)",
             "Berufsausbildung",
             "Bachelor",
-            "Master",
             "Diplom",
+            "Master",
             "Staatsexamen",
             "Promotion",
             "Habilitation",
