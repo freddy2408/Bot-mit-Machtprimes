@@ -52,6 +52,9 @@ if "closed" not in st.session_state:
 if "final_bot_price" not in st.session_state:
     st.session_state["final_bot_price"] = None
 
+if "admin_reset_done" not in st.session_state:
+    st.session_state["admin_reset_done"] = False
+
 # -----------------------------
 # [NEGOTIATION CONTROL STATE]
 # -----------------------------
@@ -1053,28 +1056,21 @@ if pwd_ok:
             if st.button("❌ Abbrechen"):
                 st.session_state["confirm_delete"] = False
 
+
         with col2:
             if st.button("✅ Ja, löschen"):
-                # 1) Verhandlungsergebnisse löschen (SQLite)
+                # Verhandlungsergebnisse (SQLite)
                 conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
                 c.execute("DELETE FROM results")
                 conn.commit()
                 conn.close()
 
-                # 2) Umfrageergebnisse löschen (Excel-Datei)
+                # Umfrageergebnisse (Excel)
                 if os.path.exists(SURVEY_FILE):
-                    try:
-                        os.remove(SURVEY_FILE)
-                    except Exception as e:
-                        st.sidebar.error(f"Fehler beim Löschen der Umfrage-Datei: {e}")
-
-                # 3) Optional: Session-State zurücksetzen (UI sauber)
-                for k in ["confirm_delete"]:
-                    if k in st.session_state:
-                        del st.session_state[k]
+                    os.remove(SURVEY_FILE)
 
                 st.session_state["confirm_delete"] = False
-                st.sidebar.success("Alle Ergebnisse (Verhandlung + Umfrage) wurden gelöscht.")
+                st.sidebar.success("Alle Ergebnisse wurden gelöscht.")
                 st.experimental_rerun()
 
