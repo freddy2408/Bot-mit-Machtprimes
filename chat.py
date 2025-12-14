@@ -1054,13 +1054,27 @@ if pwd_ok:
                 st.session_state["confirm_delete"] = False
 
         with col2:
-            if st.button("✅ Ja, löschen"):
-                conn = sqlite3.connect(DB_PATH)
-                c = conn.cursor()
-                c.execute("DELETE FROM results")
-                conn.commit()
-                conn.close()
+        if st.button("✅ Ja, löschen"):
+            # 1) Verhandlungsergebnisse löschen (SQLite)
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute("DELETE FROM results")
+            conn.commit()
+            conn.close()
 
-                st.session_state["confirm_delete"] = False
-                st.sidebar.success("Alle Ergebnisse wurden gelöscht.")
-                st.experimental_rerun()
+            # 2) Umfrageergebnisse löschen (Excel-Datei)
+            if os.path.exists(SURVEY_FILE):
+                try:
+                    os.remove(SURVEY_FILE)
+                except Exception as e:
+                    st.sidebar.error(f"Fehler beim Löschen der Umfrage-Datei: {e}")
+
+            # 3) Optional: Session-State zurücksetzen (UI sauber)
+            for k in ["confirm_delete"]:
+                if k in st.session_state:
+                    del st.session_state[k]
+
+            st.session_state["confirm_delete"] = False
+            st.sidebar.success("Alle Ergebnisse (Verhandlung + Umfrage) wurden gelöscht.")
+            st.experimental_rerun()
+
