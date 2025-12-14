@@ -70,6 +70,7 @@ if "last_user_price" not in st.session_state:
 if "warning_given" not in st.session_state:
     st.session_state.warning_given = False
 
+SURVEY_FILE = "survey_results.xlsx"
 
 # ----------------------------
 # Fragebogen (nur nach Abschluss)
@@ -77,11 +78,13 @@ if "warning_given" not in st.session_state:
 from survey import show_survey
 
 def run_survey_and_stop():
+
+    if st.session_state.get("admin_reset_done"):
+        st.stop()
+
     survey_data = show_survey()
 
     if survey_data:
-        SURVEY_FILE = "survey_results.xlsx"
-
         if os.path.exists(SURVEY_FILE):
             df_old = pd.read_excel(SURVEY_FILE)
             df = pd.concat([df_old, pd.DataFrame([survey_data])], ignore_index=True)
@@ -96,7 +99,6 @@ def run_survey_and_stop():
 # Wenn die Verhandlung bereits geschlossen wurde → sofort Fragebogen
 if st.session_state["closed"]:
     run_survey_and_stop()
-  
 
 # -----------------------------
 # [SECRETS & MODELL]
