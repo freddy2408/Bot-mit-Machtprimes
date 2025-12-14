@@ -22,7 +22,7 @@ def show_survey():
 
     gender = st.radio(
         "",
-        ["männlich", "weiblich", "divers",],
+        ["männlich", "weiblich", "divers"],
         index=None,
         horizontal=True,
         label_visibility="collapsed",
