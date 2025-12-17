@@ -699,6 +699,17 @@ def _init_db():
             msg_count INTEGER
         )
     """)
+    # Neue Tabelle für den Chatverlauf
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            role TEXT,
+            text TEXT,
+            ts TEXT,
+            msg_index INTEGER
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -712,6 +723,44 @@ def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
     )
     conn.commit()
     conn.close()
+# -----------------------------
+# [CHAT-MESSAGES LOGGING]
+# -----------------------------
+def log_chat_message(session_id, role, text, ts, msg_index):
+    """
+    Speichert jede einzelne Chat-Nachricht in die DB.
+    session_id: ID der Verhandlung
+    role: 'user' oder 'assistant'
+    text: Nachrichtentext
+    ts: Zeitstempel
+    msg_index: Reihenfolge der Nachricht
+    """
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO chat_messages (session_id, role, text, ts, msg_index)
+        VALUES (?, ?, ?, ?, ?)
+    """, (session_id, role, text, ts, msg_index))
+    conn.commit()
+    conn.close()
+
+# -----------------------------
+# [CHAT-MESSAGES LOADING]
+# -----------------------------
+def load_chat_for_session(session_id):
+    """
+    Lädt alle Chat-Nachrichten für eine bestimmte Session
+    in chronologischer Reihenfolge.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    df = pd.read_sql_query("""
+        SELECT role, text, ts
+        FROM chat_messages
+        WHERE session_id = ?
+        ORDER BY msg_index ASC
+    """, conn, params=(session_id,))
+    conn.close()
+    return df
 
 def load_results_df() -> pd.DataFrame:
     _init_db()
@@ -816,6 +865,14 @@ if user_input and not st.session_state["closed"]:
         "text": user_input.strip(),
         "ts": now,
     })
+    msg_index = len(st.session_state["history"]) - 1
+    log_chat_message(
+        st.session_state["session_id"],
+        "user",
+        user_input.strip(),
+        now,
+        msg_index
+    )
 
     # LLM-Verlauf vorbereiten (role/content)
     llm_history = [
@@ -876,6 +933,15 @@ if user_input and not st.session_state["closed"]:
         "text": bot_text,
         "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
     })
+
+    msg_index = len(st.session_state["history"]) - 1
+    log_chat_message(
+            st.session_state["session_id"],
+            "assistant",
+            bot_text,
+            datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
+            msg_index
+        )
 
     # 🔥 4) Abbruch loggen (falls nötig)
     if decision == "abort":
@@ -1032,7 +1098,45 @@ if pwd_ok:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
+        # -----------------------------
+        # Session-Auswahl für Chat
+        # -----------------------------
+        st.markdown("---")
+        st.subheader("💬 Chatverlauf anzeigen")
 
+        selected_session = st.selectbox(
+            "Verhandlung auswählen",
+            df["session_id"].unique()
+        )
+
+        # -----------------------------
+        # Chat-Nachrichten anzeigen
+        # -----------------------------
+        if selected_session:
+            chat_df = load_chat_for_session(selected_session)
+
+            BOT_AVATAR  = img_to_base64("bot.png")
+            USER_AVATAR = img_to_base64("user.png")
+
+            st.markdown("### 💬 Chatverlauf")
+
+            for _, row in chat_df.iterrows():
+                is_user = row["role"] == "user"
+                avatar_b64 = USER_AVATAR if is_user else BOT_AVATAR
+                side = "right" if is_user else "left"
+                klass = "msg-user" if is_user else "msg-bot"
+
+                st.markdown(f"""
+                <div class="row {side}">
+                    <img src="data:image/png;base64,{avatar_b64}" class="avatar">
+                    <div class="chat-bubble {klass}">
+                        {row["text"]}
+                    </div>
+                </div>
+                <div class="row {side}">
+                    <div class="meta">{row["ts"]}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # ----------------------------
 # Admin Reset mit Bestätigung
