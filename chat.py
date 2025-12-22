@@ -735,39 +735,46 @@ def generate_reply(history, params: dict) -> str:
 
 DB_PATH = "verhandlungsergebnisse.sqlite3"
 
+def _add_column_if_missing(c, table: str, col: str, coltype: str):
+    cols = [r[1] for r in c.execute(f"PRAGMA table_info({table})").fetchall()]
+    if col not in cols:
+        c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")
+
 def _init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # results: gleich mit allen Spalten anlegen
+    # Basistabellen anlegen
     c.execute("""
         CREATE TABLE IF NOT EXISTS results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ts TEXT,
             session_id TEXT,
-            participant_id TEXT,
-            bot_variant TEXT,
-            order_id TEXT,
-            step TEXT,
             deal INTEGER,
             price INTEGER,
             msg_count INTEGER
         )
     """)
 
-    # chat_messages: gleich mit allen Spalten anlegen
     c.execute("""
         CREATE TABLE IF NOT EXISTS chat_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             session_id TEXT,
-            participant_id TEXT,
-            bot_variant TEXT,
             role TEXT,
             text TEXT,
             ts TEXT,
             msg_index INTEGER
         )
     """)
+
+    # ---- Migration: fehlende Spalten nachrüsten ----
+    _add_column_if_missing(c, "results", "participant_id", "TEXT")
+    _add_column_if_missing(c, "results", "bot_variant", "TEXT")
+    _add_column_if_missing(c, "results", "order_id", "TEXT")
+    _add_column_if_missing(c, "results", "step", "TEXT")
+
+    _add_column_if_missing(c, "chat_messages", "participant_id", "TEXT")
+    _add_column_if_missing(c, "chat_messages", "bot_variant", "TEXT")
 
     conn.commit()
     conn.close()
