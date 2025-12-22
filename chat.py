@@ -873,7 +873,7 @@ with st.container():
     st.write(st.session_state.params["scenario_text"])
     st.write(f"**Ausgangspreis:** {st.session_state.params['list_price']} €")
 
-st.caption(f"Session-ID: `{st.session_state.['session_id']}`")
+st.caption(f"Session-ID: `{st.session_state['session_id']}`")
 
 # -----------------------------
 # [CHAT-UI – vollständig LLM-basiert]
