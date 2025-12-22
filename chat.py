@@ -307,25 +307,25 @@ def check_abort_conditions(user_text: str, user_price: int | None):
     if user_price is None:
         return "ok", None
 
-    last_price = st.session.state["last_user_price"]
+    last_price = st.session_state["last_user_price"]
     bot_offer = st.session_state.get("bot_offer")
 
     if last_price == user_price:
-        st.session.state["repeat_offer_count"] += 1
+        st.session_state["repeat_offer_count"] += 1
     else:
-        st.session.state["repeat_offer_count"] = 0
+        st.session_state["repeat_offer_count"] = 0
 
-    if st.session.state["repeat_offer_count"] == 1:
+    if st.session_state["repeat_offer_count"] == 1:
         return "warn", "Du wiederholst dein Angebot. Das registriere ich."
-    if st.session.state["repeat_offer_count"] >= 2:
+    if st.session_state["repeat_offer_count"] >= 2:
         return "abort", (
             "Du bewegst dich keinen Schritt. "
             "Unter diesen Bedingungen ist die Verhandlung beendet."
         )
 
     if last_price and user_price < last_price:
-        if not st.session.state["warning_given"]:
-            st.session.state["warning_given"] = True
+        if not st.session_state["warning_given"]:
+            st.session_state["warning_given"] = True
             return "warn", (
                 "Du gehst preislich zurück. "
                 "Das ist kein ernsthafter Verhandlungsansatz."
@@ -343,13 +343,13 @@ def check_abort_conditions(user_text: str, user_price: int | None):
         step = user_price - last_price
 
         if price_gap > 20 and 0 < step < 4:
-            st.session.state["small_step_count"] += 1
+            st.session_state["small_step_count"] += 1
 
             # ✅ WICHTIG: last_user_price schon hier updaten,
             # damit die NÄCHSTE Erhöhung korrekt auf dem letzten Angebot basiert
-            st.session.state["last_user_price"] = user_price
+            st.session_state["last_user_price"] = user_price
 
-            if st.session.state["small_step_count"] == 1:
+            if st.session_state["small_step_count"] == 1:
                 return "warn", (
                     "Sie sind deutlich vom Preis entfernt "
                     "und erhöhen nur minimal. "
@@ -365,9 +365,9 @@ def check_abort_conditions(user_text: str, user_price: int | None):
 
         # Reset nur, wenn sinnvoll erhöht ODER Abstand klein genug ist
         if step >= 4 or price_gap <= 20:
-            st.session.state["small_step_count"] = 0
+            st.session_state["small_step_count"] = 0
 
-    st.session.state["last_user_price"] = user_price
+    st.session_state["last_user_price"] = user_price
     return "ok", None
 
 # -----------------------------
@@ -736,9 +736,16 @@ def generate_reply(history, params: dict) -> str:
 # -----------------------------
 DB_PATH = "verhandlungsergebnisse.sqlite3"
 
+def _add_column_if_missing(c, table: str, col: str, coltype: str):
+    cols = [r[1] for r in c.execute(f"PRAGMA table_info({table})").fetchall()]
+    if col not in cols:
+        c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")
+
 def _init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
+    # results
     c.execute("""
         CREATE TABLE IF NOT EXISTS results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -749,7 +756,39 @@ def _init_db():
             msg_count INTEGER
         )
     """)
-    # Neue Tabelle für den Chatverlauf
+
+def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
+    _init_db()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+        INSERT INTO results (
+            ts, session_id, participant_id, bot_variant, order_id, step,
+            deal, price, msg_count
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        datetime.utcnow().isoformat(),
+        session_id,
+        PID,
+        BOT_VARIANT,
+        ORDER,
+        STEP,
+        1 if deal else 0,
+        price,
+        msg_count
+    ))
+    conn.commit()
+    conn.close()
+
+
+    # ✅ neue Spalten für Auswertung / Join
+    _add_column_if_missing(c, "results", "participant_id", "TEXT")
+    _add_column_if_missing(c, "results", "bot_variant", "TEXT")
+    _add_column_if_missing(c, "results", "order_id", "TEXT")
+    _add_column_if_missing(c, "results", "step", "TEXT")
+
+    # chat_messages
     c.execute("""
         CREATE TABLE IF NOT EXISTS chat_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -760,37 +799,34 @@ def _init_db():
             msg_index INTEGER
         )
     """)
+    _add_column_if_missing(c, "chat_messages", "participant_id", "TEXT")
+    _add_column_if_missing(c, "chat_messages", "bot_variant", "TEXT")
+
     conn.commit()
     conn.close()
 
-def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
-    _init_db()
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute(
-        "INSERT INTO results (ts, session_id, deal, price, msg_count) VALUES (?, ?, ?, ?, ?)",
-        (datetime.utcnow().isoformat(), session_id, 1 if deal else 0, price, msg_count),
-    )
-    conn.commit()
-    conn.close()
 # -----------------------------
 # [CHAT-MESSAGES LOGGING]
 # -----------------------------
 def log_chat_message(session_id, role, text, ts, msg_index):
-    """
-    Speichert jede einzelne Chat-Nachricht in die DB.
-    session_id: ID der Verhandlung
-    role: 'user' oder 'assistant'
-    text: Nachrichtentext
-    ts: Zeitstempel
-    msg_index: Reihenfolge der Nachricht
-    """
+    _init_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        INSERT INTO chat_messages (session_id, role, text, ts, msg_index)
-        VALUES (?, ?, ?, ?, ?)
-    """, (session_id, role, text, ts, msg_index))
+        INSERT INTO chat_messages (
+            session_id, participant_id, bot_variant,
+            role, text, ts, msg_index
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        session_id,
+        PID,
+        BOT_VARIANT,
+        role,
+        text,
+        ts,
+        msg_index
+    ))
     conn.commit()
     conn.close()
 
@@ -798,13 +834,10 @@ def log_chat_message(session_id, role, text, ts, msg_index):
 # [CHAT-MESSAGES LOADING]
 # -----------------------------
 def load_chat_for_session(session_id):
-    """
-    Lädt alle Chat-Nachrichten für eine bestimmte Session
-    in chronologischer Reihenfolge.
-    """
+    _init_db()
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql_query("""
-        SELECT role, text, ts
+        SELECT participant_id, bot_variant, role, text, ts
         FROM chat_messages
         WHERE session_id = ?
         ORDER BY msg_index ASC
@@ -812,11 +845,19 @@ def load_chat_for_session(session_id):
     conn.close()
     return df
 
+#------------
+
 def load_results_df() -> pd.DataFrame:
     _init_db()
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql_query(
-        "SELECT ts, session_id, deal, price, msg_count FROM results ORDER BY id ASC",
+        """
+        SELECT
+            ts, participant_id, session_id, bot_variant, order_id, step,
+            deal, price, msg_count
+        FROM results
+        ORDER BY id ASC
+        """,
         conn,
     )
     conn.close()
@@ -824,6 +865,7 @@ def load_results_df() -> pd.DataFrame:
         return df
     df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
     return df
+
 
 
 def extract_price_from_bot(msg: str) -> int | None:
@@ -1132,7 +1174,7 @@ if pwd_ok:
         else:
             df = df.reset_index(drop=True)
             df["nr"] = df.index + 1
-            df = df[["nr", "ts", "session_id", "deal", "price", "msg_count"]]
+            df = df[["nr", "ts", "participant_id", "session_id", "bot_variant", "order_id", "step", "deal", "price", "msg_count"]]
 
             st.dataframe(df, use_container_width=True, hide_index=True)
 
