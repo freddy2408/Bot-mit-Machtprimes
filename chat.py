@@ -729,38 +729,55 @@ def generate_reply(history, params: dict) -> str:
 
     return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
 
-
-
 # -----------------------------
 # [ERGEBNIS-LOGGING (SQLite)]
 # -----------------------------
-DB_PATH = "verhandlungsergebnisse.sqlite3"
 
-def _add_column_if_missing(c, table: str, col: str, coltype: str):
-    cols = [r[1] for r in c.execute(f"PRAGMA table_info({table})").fetchall()]
-    if col not in cols:
-        c.execute(f"ALTER TABLE {table} ADD COLUMN {col} {coltype}")
+DB_PATH = "verhandlungsergebnisse.sqlite3"
 
 def _init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # results
+    # results: gleich mit allen Spalten anlegen
     c.execute("""
         CREATE TABLE IF NOT EXISTS results (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             ts TEXT,
             session_id TEXT,
+            participant_id TEXT,
+            bot_variant TEXT,
+            order_id TEXT,
+            step TEXT,
             deal INTEGER,
             price INTEGER,
             msg_count INTEGER
         )
     """)
 
+    # chat_messages: gleich mit allen Spalten anlegen
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            participant_id TEXT,
+            bot_variant TEXT,
+            role TEXT,
+            text TEXT,
+            ts TEXT,
+            msg_index INTEGER
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
 def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
     _init_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
     c.execute("""
         INSERT INTO results (
             ts, session_id, participant_id, bot_variant, order_id, step,
@@ -778,40 +795,16 @@ def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
         price,
         msg_count
     ))
-    conn.commit()
-    conn.close()
-
-
-    # ✅ neue Spalten für Auswertung / Join
-    _add_column_if_missing(c, "results", "participant_id", "TEXT")
-    _add_column_if_missing(c, "results", "bot_variant", "TEXT")
-    _add_column_if_missing(c, "results", "order_id", "TEXT")
-    _add_column_if_missing(c, "results", "step", "TEXT")
-
-    # chat_messages
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS chat_messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            role TEXT,
-            text TEXT,
-            ts TEXT,
-            msg_index INTEGER
-        )
-    """)
-    _add_column_if_missing(c, "chat_messages", "participant_id", "TEXT")
-    _add_column_if_missing(c, "chat_messages", "bot_variant", "TEXT")
 
     conn.commit()
     conn.close()
 
-# -----------------------------
-# [CHAT-MESSAGES LOGGING]
-# -----------------------------
+
 def log_chat_message(session_id, role, text, ts, msg_index):
     _init_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
     c.execute("""
         INSERT INTO chat_messages (
             session_id, participant_id, bot_variant,
@@ -827,12 +820,11 @@ def log_chat_message(session_id, role, text, ts, msg_index):
         ts,
         msg_index
     ))
+
     conn.commit()
     conn.close()
 
-# -----------------------------
-# [CHAT-MESSAGES LOADING]
-# -----------------------------
+
 def load_chat_for_session(session_id):
     _init_db()
     conn = sqlite3.connect(DB_PATH)
@@ -845,27 +837,22 @@ def load_chat_for_session(session_id):
     conn.close()
     return df
 
-#------------
 
 def load_results_df() -> pd.DataFrame:
     _init_db()
     conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query(
-        """
+    df = pd.read_sql_query("""
         SELECT
             ts, participant_id, session_id, bot_variant, order_id, step,
             deal, price, msg_count
         FROM results
         ORDER BY id ASC
-        """,
-        conn,
-    )
+    """, conn)
     conn.close()
-    if df.empty:
-        return df
-    df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
-    return df
 
+    if not df.empty:
+        df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
+    return df
 
 
 def extract_price_from_bot(msg: str) -> int | None:
