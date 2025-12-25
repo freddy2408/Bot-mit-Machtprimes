@@ -720,7 +720,6 @@ def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, toleran
         counter = human_price(raw_price, user_price)
         counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
-        counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
             return f"Einverstanden. ✅ Deal bei {user_price} €."
 
