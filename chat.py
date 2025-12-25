@@ -900,11 +900,11 @@ def load_results_df() -> pd.DataFrame:
         df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
     return df
 
-
 def extract_price_from_bot(msg: str) -> int | None:
-    if not isinstance(msg, str) or not msg.strip():
+    if not isinstance(msg, str):
         return None
     text = msg.lower()
+
 
     # Speichergrößen ausschließen
     gb_numbers = re.findall(r"(\d{2,5})\s*gb", text)
