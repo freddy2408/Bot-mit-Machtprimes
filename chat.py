@@ -668,7 +668,7 @@ def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, toleran
         counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            return f"Einverstanden. ✅ Deal bei {user_price} €."
+            pass
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -694,8 +694,6 @@ def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, toleran
         counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            return f"Einverstanden. ✅ Deal bei {user_price} €."
-
             pass
 
         instruct = (
@@ -723,7 +721,7 @@ def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, toleran
         counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            return f"Einverstanden. ✅ Deal bei {user_price} €."
+            pass
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -900,11 +898,9 @@ def load_results_df() -> pd.DataFrame:
         df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
     return df
 
-def extract_price_from_bot(msg: str) -> int | None:
-    if not isinstance(msg, str):
-        return None
-    text = msg.lower()
 
+def extract_price_from_bot(msg: str) -> int | None:
+    text = msg.lower()
 
     # Speichergrößen ausschließen
     gb_numbers = re.findall(r"(\d{2,5})\s*gb", text)
@@ -1053,7 +1049,6 @@ if user_input and not st.session_state["closed"]:
 
     else:
         bot_text = generate_reply(llm_history, st.session_state.params)
-        
 
     # 🔥 3) BOT-NACHRICHT SPEICHERN
     st.session_state["history"].append({
