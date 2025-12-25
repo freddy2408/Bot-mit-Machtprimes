@@ -573,6 +573,7 @@ def generate_reply(history, params: dict) -> str:
         return int(round(x / 5) * 5)
 
     def ensure_not_higher(new_price: int) -> int:
+        
         """
         Stelle sicher, dass ein neues Gegenangebot nie höher ist
         als das letzte Bot-Angebot (falls vorhanden).
@@ -584,6 +585,22 @@ def generate_reply(history, params: dict) -> str:
             # kleine Korrektur nach unten, um glaubwürdig zu bleiben
             return last_bot_offer - random.randint(5, 15)
         return new_price
+    # NIE UNTER USER-ANGEBOT (sonst: Verkäufer wirkt unlogisch)
+    # Sonderfall: Wenn User bereits >= letztem Bot-Angebot ist -> Deal statt Gegenangebot
+    def clamp_counter_vs_user(counter: int, user_price: int):
+        nonlocal last_bot_offer
+
+        # Wenn der User dein letztes Angebot erreicht/überboten hat: nicht unterbieten, sondern akzeptieren
+        if last_bot_offer is not None and user_price >= last_bot_offer:
+            return None  # Signal: Deal
+
+        # Counter darf nicht <= User-Angebot sein (sonst "biete ich weniger als du")
+        if counter <= user_price:
+            # Endgame kleine Schritte, sonst 5er Schritt
+            bump = random.choice([1, 2, 3]) if (last_bot_offer is not None and abs(last_bot_offer - user_price) <= 15) else 5
+            counter = user_price + bump
+
+        return counter
 
     def human_price(raw_price: int, user_price: int) -> int:
         """
@@ -642,6 +659,9 @@ def generate_reply(history, params: dict) -> str:
             raw_price = concession_step(last_bot_offer, MIN)
 
         counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = clamp_counter_vs_user(counter, user_price)
+        if counter is None:
+            pass
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -664,6 +684,9 @@ def generate_reply(history, params: dict) -> str:
             raw_price = concession_step(last_bot_offer, MIN)
 
         counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = clamp_counter_vs_user(counter, user_price)
+        if counter is None:
+            pass
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -687,6 +710,9 @@ def generate_reply(history, params: dict) -> str:
 
         raw_price = min(raw_price, LIST)
         counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = clamp_counter_vs_user(counter, user_price)
+        if counter is None:
+            pass
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -1255,6 +1281,7 @@ if pwd_ok:
                 conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
                 c.execute("DELETE FROM results")
+                c.execute("DELETE FROM chat_messages")
                 conn.commit()
                 conn.close()
 
