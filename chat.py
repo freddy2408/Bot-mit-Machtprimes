@@ -658,7 +658,8 @@ def generate_reply(history, params: dict) -> str:
             # weitere Runden: kleine, kontrollierte Nachgabe
             raw_price = concession_step(last_bot_offer, MIN)
 
-        counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = human_price(raw_price, user_price)
+        counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
             pass
@@ -683,7 +684,8 @@ def generate_reply(history, params: dict) -> str:
         else:
             raw_price = concession_step(last_bot_offer, MIN)
 
-        counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = human_price(raw_price, user_price)
+        counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
             pass
@@ -701,7 +703,7 @@ def generate_reply(history, params: dict) -> str:
         if last_bot_offer is None:
             # alte Logik, abhängig von Gesprächsphase
             if msg_count < 3:
-                raw_price = user_price + random.randint(30, 80)
+                raw_price = user_price + random.randint(60, 100)
             else:
                 raw_price = user_price + random.randint(15, 40)
         else:
@@ -709,7 +711,8 @@ def generate_reply(history, params: dict) -> str:
             raw_price = concession_step(last_bot_offer, MIN)
 
         raw_price = min(raw_price, LIST)
-        counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = human_price(raw_price, user_price)
+        counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
             pass
