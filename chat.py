@@ -727,6 +727,9 @@ def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, toleran
             f"Der Nutzer bietet {user_price} €. "
             f"Setze ein präzises Gegenangebot: {counter} €. "
             f"2–4 harte, dominante Sätze."
+            f"Wenn das Nutzerangebot sehr nah an deinem letzten Angebot liegt (z. B. ≤ 10 € Differenz), akzeptiere. "
+            f"Ansonsten setze ein klares Gegenangebot: {counter} €. "
+
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
 
