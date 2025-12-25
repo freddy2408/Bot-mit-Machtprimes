@@ -631,6 +631,12 @@ def generate_reply(history, params: dict) -> str:
             step = random.randint(5, 12)
         return max(base - step, min_price)
 
+def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, tolerance: int = 10) -> bool:
+    if user_price is None or bot_offer is None:
+        return False
+    return user_price >= (bot_offer - tolerance)
+
+
     # Kurz-Referenzen
     LIST = params["list_price"]
     MIN  = params["min_price"]
@@ -720,7 +726,6 @@ def generate_reply(history, params: dict) -> str:
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
             f"Setze ein präzises Gegenangebot: {counter} €. "
-            f"Keine Zustimmung, kein Deal, nur klare Dominanz. "
             f"2–4 harte, dominante Sätze."
         )
         return call_openai([sys_msg] + history + [{"role": "user", "content": instruct}])
