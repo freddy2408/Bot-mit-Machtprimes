@@ -900,6 +900,8 @@ def load_results_df() -> pd.DataFrame:
 
 
 def extract_price_from_bot(msg: str) -> int | None:
+    if not isinstance(msg, str) or not msg.strip():
+        return None
     text = msg.lower()
 
     # Speichergrößen ausschließen
