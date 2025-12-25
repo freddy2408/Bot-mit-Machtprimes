@@ -668,7 +668,7 @@ def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, toleran
         counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            pass
+            return f"Einverstanden. ✅ Deal bei {user_price} €."
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -694,6 +694,8 @@ def bot_accepts_near_deal(user_price: int | None, bot_offer: int | None, toleran
         counter = ensure_not_higher(counter)
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
+            return f"Einverstanden. ✅ Deal bei {user_price} €."
+
             pass
 
         instruct = (
@@ -1051,6 +1053,7 @@ if user_input and not st.session_state["closed"]:
 
     else:
         bot_text = generate_reply(llm_history, st.session_state.params)
+        
 
     # 🔥 3) BOT-NACHRICHT SPEICHERN
     st.session_state["history"].append({
