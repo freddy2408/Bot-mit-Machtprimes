@@ -573,7 +573,6 @@ def generate_reply(history, params: dict) -> str:
         return int(round(x / 5) * 5)
 
     def ensure_not_higher(new_price: int) -> int:
-        
         """
         Stelle sicher, dass ein neues Gegenangebot nie höher ist
         als das letzte Bot-Angebot (falls vorhanden).
@@ -585,22 +584,6 @@ def generate_reply(history, params: dict) -> str:
             # kleine Korrektur nach unten, um glaubwürdig zu bleiben
             return last_bot_offer - random.randint(5, 15)
         return new_price
-    # NIE UNTER USER-ANGEBOT (sonst: Verkäufer wirkt unlogisch)
-    # Sonderfall: Wenn User bereits >= letztem Bot-Angebot ist -> Deal statt Gegenangebot
-    def clamp_counter_vs_user(counter: int, user_price: int):
-        nonlocal last_bot_offer
-
-        # Wenn der User dein letztes Angebot erreicht/überboten hat: nicht unterbieten, sondern akzeptieren
-        if last_bot_offer is not None and user_price >= last_bot_offer:
-            return None  # Signal: Deal
-
-        # Counter darf nicht <= User-Angebot sein (sonst "biete ich weniger als du")
-        if counter <= user_price:
-            # Endgame kleine Schritte, sonst 5er Schritt
-            bump = random.choice([1, 2, 3]) if (last_bot_offer is not None and abs(last_bot_offer - user_price) <= 15) else 5
-            counter = user_price + bump
-
-        return counter
 
     def human_price(raw_price: int, user_price: int) -> int:
         """
@@ -658,11 +641,7 @@ def generate_reply(history, params: dict) -> str:
             # weitere Runden: kleine, kontrollierte Nachgabe
             raw_price = concession_step(last_bot_offer, MIN)
 
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
-        counter = clamp_counter_vs_user(counter, user_price)
-        if counter is None:
-            pass
+        counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -684,11 +663,7 @@ def generate_reply(history, params: dict) -> str:
         else:
             raw_price = concession_step(last_bot_offer, MIN)
 
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
-        counter = clamp_counter_vs_user(counter, user_price)
-        if counter is None:
-            pass
+        counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -703,7 +678,7 @@ def generate_reply(history, params: dict) -> str:
         if last_bot_offer is None:
             # alte Logik, abhängig von Gesprächsphase
             if msg_count < 3:
-                raw_price = user_price + random.randint(60, 100)
+                raw_price = user_price + random.randint(30, 80)
             else:
                 raw_price = user_price + random.randint(15, 40)
         else:
@@ -711,11 +686,7 @@ def generate_reply(history, params: dict) -> str:
             raw_price = concession_step(last_bot_offer, MIN)
 
         raw_price = min(raw_price, LIST)
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
-        counter = clamp_counter_vs_user(counter, user_price)
-        if counter is None:
-            pass
+        counter = ensure_not_higher(human_price(raw_price, user_price))
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -890,6 +861,33 @@ def load_results_df() -> pd.DataFrame:
         df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
     return df
 
+def export_all_chats_to_txt() -> str:
+    _init_db()
+    conn = sqlite3.connect(DB_PATH)
+
+    df = pd.read_sql_query("""
+        SELECT session_id, role, text, ts
+        FROM chat_messages
+        ORDER BY session_id, msg_index ASC
+    """, conn)
+
+    conn.close()
+
+    if df.empty:
+        return "Keine Chatverläufe vorhanden."
+
+    output = []
+    for session_id, group in df.groupby("session_id"):
+        output.append(f"Session-ID: {session_id}")
+        output.append("-" * 50)
+
+        for _, row in group.iterrows():
+            role = "USER" if row["role"] == "user" else "BOT"
+            output.append(f"[{row['ts']}] {role}: {row['text']}")
+
+        output.append("\n" + "=" * 60 + "\n")
+
+    return "\n".join(output)
 
 def extract_price_from_bot(msg: str) -> int | None:
     text = msg.lower()
@@ -1213,6 +1211,22 @@ if pwd_ok:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
             )
+        
+        # =============================
+        # 📥 CHAT-EXPORT (NEU)
+        # =============================
+        st.markdown("### 📥 Chat-Export")
+
+        chat_txt = export_all_chats_to_txt()
+
+        st.download_button(
+            label="📄 Alle Chats als TXT herunterladen",
+            data=chat_txt,
+            file_name="alle_chatverlaeufe.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
+        
         # -----------------------------
         # Session-Auswahl für Chat
         # -----------------------------
