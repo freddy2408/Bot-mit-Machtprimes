@@ -700,17 +700,15 @@ def generate_reply(history, params: dict) -> str:
     # -----------------------------
     # DYNAMISCHE WEITERVERHANDLUNG
     # -----------------------------
-
     # Bot darf NIE über seinen letzten Preis steigen
     base = last_bot_offer
 
-    # Erlaubte flexible Nachgabelogik
-    step = concession_step()
-    new_price = base - step
+    # Falls aus irgendeinem Grund kein letzter Bot-Preis existiert → fallback
+    if base is None:
+        base = LIST
 
-    # Niemals unter Mindestpreis fallen
-    if new_price < MIN:
-        new_price = MIN
+    # concession_step gibt bereits den "neuen Preis" zurück
+    new_price = concession_step(base, MIN)
 
     # Kleine „menschliche“ Rauschentropfen:
     if random.random() < 0.4:
@@ -728,6 +726,7 @@ def generate_reply(history, params: dict) -> str:
     )
 
     return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+
 
 # -----------------------------
 # [ERGEBNIS-LOGGING (SQLite)]
@@ -994,8 +993,10 @@ if user_input and not st.session_state["closed"]:
     ]
 
     # Nutzerpreis extrahieren
-    nums = re.findall(r"\d{2,5}", user_input)
-    user_price = int(nums[0]) if nums else None
+    user_price = None
+    if user_input:
+        nums = re.findall(r"\d{2,5}", user_input)
+        user_price = int(nums[0]) if nums else None
 
     decision, msg = check_abort_conditions(user_input, user_price)
 
