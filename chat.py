@@ -758,7 +758,7 @@ def generate_reply(history, params: dict) -> str:
         if last_bot_offer is None:
             # alte Logik, abhängig von Gesprächsphase
             if msg_count < 3:
-                raw_price = user_price + random.randint(30, 80)
+                raw_price = user_price + random.randint(60, 100)
             else:
                 raw_price = user_price + random.randint(15, 40)
         else:
