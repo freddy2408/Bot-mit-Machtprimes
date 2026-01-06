@@ -664,6 +664,20 @@ def generate_reply(history, params: dict) -> str:
             # kleine Korrektur nach unten, um glaubwürdig zu bleiben
             return last_bot_offer - random.randint(5, 15)
         return new_price
+    
+    def clamp_counter_vs_user(counter: int, user_price: int):
+        nonlocal last_bot_offer
+
+        # Wenn User dein letztes Angebot erreicht/überboten hat:
+        if last_bot_offer is not None and user_price >= last_bot_offer:
+            return None  # Signal: Deal/Preis fix
+
+        # Verkäufer darf nicht unterbieten
+        if counter <= user_price:
+            bump = random.choice([1, 2, 3]) if abs(counter - user_price) <= 15 else 5
+            counter = user_price + bump
+
+        return counter
 
     def human_price(raw_price: int, user_price: int) -> int:
         """
@@ -721,11 +735,11 @@ def generate_reply(history, params: dict) -> str:
             # weitere Runden: kleine, kontrollierte Nachgabe
             raw_price = concession_step(last_bot_offer, MIN)
 
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
+        counter = ensure_not_higher(human_price(raw_price, user_price))
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            pass
+            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot unterbieten
+            counter = last_bot_offer
 
 
         instruct = (
@@ -748,11 +762,11 @@ def generate_reply(history, params: dict) -> str:
         else:
             raw_price = concession_step(last_bot_offer, MIN)
 
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
+        counter = ensure_not_higher(human_price(raw_price, user_price))
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            pass
+            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot unterbieten
+            counter = last_bot_offer
 
 
         instruct = (
@@ -776,11 +790,11 @@ def generate_reply(history, params: dict) -> str:
             raw_price = concession_step(last_bot_offer, MIN)
 
         raw_price = min(raw_price, LIST)
-        counter = human_price(raw_price, user_price)
-        counter = ensure_not_higher(counter)
+        counter = ensure_not_higher(human_price(raw_price, user_price))
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            pass
+            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot unterbieten
+            counter = last_bot_offer
 
 
         instruct = (
