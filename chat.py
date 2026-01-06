@@ -722,6 +722,11 @@ def generate_reply(history, params: dict) -> str:
             raw_price = concession_step(last_bot_offer, MIN)
 
         counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = clamp_counter_vs_user(counter, user_price)
+        if counter is None:
+            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot unterbieten
+            counter = last_bot_offer
+
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -744,6 +749,11 @@ def generate_reply(history, params: dict) -> str:
             raw_price = concession_step(last_bot_offer, MIN)
 
         counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = clamp_counter_vs_user(counter, user_price)
+        if counter is None:
+            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot unterbieten
+            counter = last_bot_offer
+
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -767,6 +777,11 @@ def generate_reply(history, params: dict) -> str:
 
         raw_price = min(raw_price, LIST)
         counter = ensure_not_higher(human_price(raw_price, user_price))
+        counter = clamp_counter_vs_user(counter, user_price)
+        if counter is None:
+            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot unterbieten
+            counter = last_bot_offer
+
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
