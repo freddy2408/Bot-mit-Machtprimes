@@ -312,30 +312,41 @@ UNIT_WORDS_AFTER_NUMBER = re.compile(
 
 def extract_user_offer(text: str) -> int | None:
     """
-    Extrahiert NUR dann einen Preis, wenn es sehr wahrscheinlich ein echtes Angebot ist.
-    Ignoriert Modell-/Spezifikationszahlen (GB/Zoll/Gen/M5 etc.) und Sätze wie "700 ist mir zu viel".
+    Extrahiert einen Preis nur dann, wenn es sehr wahrscheinlich ein echtes Angebot ist.
+    - Akzeptiert auch reine Zahlennachrichten wie "850" oder "850€"
+    - Ignoriert Spezifikationen (GB/Zoll/Gen/M-Chip etc.)
+    - Blockt "X ist mir zu viel/zu teuer" gezielt (nur wenn es sich auf die Zahl bezieht)
     """
     if not text:
         return None
 
-    t = text.lower()
+    t = text.strip().lower()
 
-    # Wenn der Nutzer klar sagt "zu viel/zu teuer" etc., ist es KEIN Angebot
-    if any(p in t for p in DISQUALIFY_CONTEXT):
-        return None
+    # 1) Reine Zahl / Zahl mit € / eur / euro => sehr wahrscheinlich Angebot
+    m_plain = re.match(r"^\s*(\d{2,5})\s*(€|eur|euro)?\s*[!?.,]?\s*$", t)
+    if m_plain:
+        val = int(m_plain.group(1))
+        if 100 <= val <= 5000:
+            return val
 
-    # Euro/eur/euro: nur zählen, wenn nicht Spezifikation und nicht "zu viel"
-    # (zu viel wurde oben schon abgefangen)
+    # 2) "X ist mir zu viel/zu teuer" => KEIN Angebot (nur wenn Kontext zur Zahl)
+    too_much_patterns = [
+        r"\b(\d{2,5})\b.*\b(zu viel|zu teuer|zu hoch|ist mir zu viel|ist mir zu teuer)\b",
+        r"\b(zu viel|zu teuer|zu hoch|ist mir zu viel|ist mir zu teuer)\b.*\b(\d{2,5})\b",
+    ]
+    for pat in too_much_patterns:
+        if re.search(pat, t):
+            return None
+
+    # 3) Euro/Intent prüfen (für normale Sätze)
     has_euro_hint = ("€" in t) or (" eur" in t) or (" euro" in t)
-
-    # Angebot-Keywords?
     has_offer_intent = any(k in t for k in OFFER_KEYWORDS)
 
     # Wenn weder Euro-Hinweis noch Angebots-Intent: keine Zahl als Angebot werten
     if not (has_euro_hint or has_offer_intent):
         return None
 
-    # Kandidaten prüfen (wir nehmen am Ende den LETZTEN plausiblen Kandidaten)
+    # 4) Kandidaten sammeln und Spezifikationen rausfiltern
     candidates = []
     for m in PRICE_TOKEN_RE.finditer(text):
         val = int(m.group(1))
@@ -349,16 +360,13 @@ def extract_user_offer(text: str) -> int | None:
         if UNIT_WORDS_AFTER_NUMBER.search(after):
             continue
 
-        # Klassiker ausschließen (z.B. 13 Zoll, 256 GB, 2. Gen)
-        if val in (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,32,64,128,256,512,1024,2048):
+        # typische Specs ausschließen
+        if val in (13, 32, 64, 128, 256, 512, 1024, 2048):
             continue
 
         candidates.append(val)
 
-    if not candidates:
-        return None
-
-    return candidates[-1]
+    return candidates[-1] if candidates else None
 
 # -----------------------------
 # ABBRECHEN DER VERHANDLUNG
