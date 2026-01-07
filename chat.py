@@ -33,6 +33,8 @@ def img_to_base64(path):
         data = f.read()
         return base64.b64encode(data).decode()
 
+st.set_page_config(page_title="iPad-Verhandlung – Kontrollbedingung", page_icon="💬")
+
 # --------------------------------
 # Session State initialisieren
 # --------------------------------
@@ -161,7 +163,6 @@ ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD")
 # -----------------------------
 # [UI: Layout & Styles + Titel mit Bild]
 # -----------------------------
-st.set_page_config(page_title="iPad-Verhandlung – Kontrollbedingung", page_icon="💬")
 
 # Bild laden (z. B. ipad.png im Projektordner)
 ipad_b64 = img_to_base64("ipad.png")
@@ -834,7 +835,7 @@ def generate_reply(history, params: dict) -> str:
         f"2–4 kalte, sachlich harte Sätze ohne Höflichkeit."
     )
 
-    return call_openai([sys_msg, {"role": "user", "content": instruct}] + history)
+    return call_openai([sys_msg] + history + [{"role":"user", "content": instruct}])
 
 
 # -----------------------------
@@ -959,19 +960,26 @@ def load_chat_for_session(session_id):
 def load_results_df() -> pd.DataFrame:
     _init_db()
     conn = sqlite3.connect(DB_PATH)
+
     df = pd.read_sql_query("""
-    SELECT
-        ts, participant_id, session_id, bot_variant, order_id, step,
-        deal, price, msg_count, ended_by, ended_via
-    FROM results
-    ORDER BY id ASC
-""", conn)
+        SELECT
+            ts, participant_id, session_id, bot_variant, order_id, step,
+            deal, price, msg_count, ended_by, ended_via
+        FROM results
+        ORDER BY id ASC
+    """, conn)
+
     conn.close()
 
     if not df.empty:
-    df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
-    df["ended_by"] = df["ended_by"].map({"user": "User", "bot": "Bot"})
-return df
+        df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
+        df["ended_by"] = df["ended_by"].map({"user": "User", "bot": "Bot"})
+        # optional (alte Zeilen ohne ended_by):
+        df["ended_by"] = df["ended_by"].fillna("Unbekannt")
+        df["ended_via"] = df["ended_via"].fillna("")
+
+    return df
+
 
 
 def export_all_chats_to_txt() -> str:
@@ -1128,6 +1136,7 @@ if user_input and not st.session_state["closed"]:
 
         log_result(st.session_state["session_id"], False, None, msg_count, ended_by="bot", ended_via="abort_rule")
         run_survey_and_stop()
+        st.stop()
 
 
     # 🔥 1) DEAL-AKZEPTANZ VOR ALLEM ANDEREN
@@ -1137,13 +1146,18 @@ if user_input and not st.session_state["closed"]:
         st.session_state["final_bot_price"] = bot_offer
         st.session_state["closed"] = True
 
-        msg_count = len([
-            m for m in st.session_state["history"]
-            if m["role"] in ("user", "assistant")
-        ])
+        msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
 
-        log_result(st.session_state["session_id"], True, bot_offer, msg_count, ended_by="user", ended_via="deal_message")
+        log_result(
+            st.session_state["session_id"],
+            True,
+            bot_offer,
+            msg_count,
+            ended_by="user",
+            ended_via="deal_message"
+        )
         run_survey_and_stop()
+
 
 
     # 🔥 2) NORMALE ENTSCHEIDUNGSLOGIK
@@ -1169,15 +1183,7 @@ if user_input and not st.session_state["closed"]:
             msg_index
         )
 
-    # 🔥 4) Abbruch loggen (falls nötig)
-    if decision == "abort":
-        msg_count = len([
-            m for m in st.session_state["history"]
-            if m["role"] in ("user", "assistant")
-        ])
-        log_result(st.session_state["session_id"], True, bot_price, msg_count, ended_by="user", ended_via="deal_button")
-
-    # 🔥 5) Bot-Angebot extrahieren & fixieren
+    # 🔥 4) Bot-Angebot extrahieren & fixieren
     new_offer = extract_price_from_bot(bot_text)
 
     if new_offer is not None:
@@ -1234,7 +1240,15 @@ if not st.session_state["closed"]:
                 m for m in st.session_state["history"]
                 if m["role"] in ("user", "assistant")
             ])
-            log_result(st.session_state["session_id"], False, None, msg_count, ended_by="user", ended_via="abort_button")
+            log_result(
+                st.session_state["session_id"],
+                True,
+                bot_price,
+                msg_count,
+                ended_by="user",
+                ended_via="deal_button"
+            )
+
 
             st.session_state["closed"] = True
             run_survey_and_stop()
