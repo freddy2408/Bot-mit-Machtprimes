@@ -880,7 +880,8 @@ def _init_db():
     _add_column_if_missing(c, "results", "bot_variant", "TEXT")
     _add_column_if_missing(c, "results", "order_id", "TEXT")
     _add_column_if_missing(c, "results", "step", "TEXT")
-
+    _add_column_if_missing(c, "results", "ended_by", "TEXT")   # "user" | "bot"
+    _add_column_if_missing(c, "results", "ended_via", "TEXT")  # optional: deal_button/deal_message/abort_button/abort_rule
     _add_column_if_missing(c, "chat_messages", "participant_id", "TEXT")
     _add_column_if_missing(c, "chat_messages", "bot_variant", "TEXT")
 
@@ -888,7 +889,7 @@ def _init_db():
     conn.close()
 
 
-def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
+def log_result(session_id: str, deal: bool, price: int | None, msg_count: int, ended_by: str, ended_via: str | None = None):
     _init_db()
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -896,9 +897,9 @@ def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
     c.execute("""
         INSERT INTO results (
             ts, session_id, participant_id, bot_variant, order_id, step,
-            deal, price, msg_count
+            deal, price, msg_count, ended_by, ended_via
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         datetime.utcnow().isoformat(),
         session_id,
@@ -908,7 +909,9 @@ def log_result(session_id: str, deal: bool, price: int | None, msg_count: int):
         STEP,
         1 if deal else 0,
         price,
-        msg_count
+        msg_count,
+        ended_by,
+        ended_via
     ))
 
     conn.commit()
@@ -957,17 +960,19 @@ def load_results_df() -> pd.DataFrame:
     _init_db()
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql_query("""
-        SELECT
-            ts, participant_id, session_id, bot_variant, order_id, step,
-            deal, price, msg_count
-        FROM results
-        ORDER BY id ASC
-    """, conn)
+    SELECT
+        ts, participant_id, session_id, bot_variant, order_id, step,
+        deal, price, msg_count, ended_by, ended_via
+    FROM results
+    ORDER BY id ASC
+""", conn)
     conn.close()
 
     if not df.empty:
-        df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
-    return df
+    df["deal"] = df["deal"].map({1: "Deal", 0: "Abgebrochen"})
+    df["ended_by"] = df["ended_by"].map({"user": "User", "bot": "Bot"})
+return df
+
 
 def export_all_chats_to_txt() -> str:
     _init_db()
@@ -1121,7 +1126,7 @@ if user_input and not st.session_state["closed"]:
             if m["role"] in ("user", "assistant")
         ])
 
-        log_result(st.session_state["session_id"], False, None, msg_count)
+        log_result(st.session_state["session_id"], False, None, msg_count, ended_by="bot", ended_via="abort_rule")
         run_survey_and_stop()
 
 
@@ -1137,7 +1142,7 @@ if user_input and not st.session_state["closed"]:
             if m["role"] in ("user", "assistant")
         ])
 
-        log_result(st.session_state["session_id"], True, bot_offer, msg_count)
+        log_result(st.session_state["session_id"], True, bot_offer, msg_count, ended_by="user", ended_via="deal_message")
         run_survey_and_stop()
 
 
@@ -1170,7 +1175,7 @@ if user_input and not st.session_state["closed"]:
             m for m in st.session_state["history"]
             if m["role"] in ("user", "assistant")
         ])
-        log_result(st.session_state["session_id"], False, None, msg_count)
+        log_result(st.session_state["session_id"], True, bot_price, msg_count, ended_by="user", ended_via="deal_button")
 
     # 🔥 5) Bot-Angebot extrahieren & fixieren
     new_offer = extract_price_from_bot(bot_text)
@@ -1229,7 +1234,7 @@ if not st.session_state["closed"]:
                 m for m in st.session_state["history"]
                 if m["role"] in ("user", "assistant")
             ])
-            log_result(st.session_state["session_id"], True, bot_price, msg_count)
+            log_result(st.session_state["session_id"], False, None, msg_count, ended_by="user", ended_via="abort_button")
 
             st.session_state["closed"] = True
             run_survey_and_stop()
@@ -1243,7 +1248,7 @@ if not st.session_state["closed"]:
                 if m["role"] in ("user", "assistant")
             ])
 
-            log_result(st.session_state["session_id"], False, None, msg_count)
+            log_result(st.session_state["session_id"], False, None, msg_count, ended_by="user", ended_via="abort_button")
 
             st.session_state["closed"] = True
             run_survey_and_stop()
@@ -1303,7 +1308,11 @@ if pwd_ok:
         else:
             df = df.reset_index(drop=True)
             df["nr"] = df.index + 1
-            df = df[["nr", "ts", "participant_id", "session_id", "bot_variant", "order_id", "step", "deal", "price", "msg_count"]]
+            df = df[[
+    "nr", "ts", "participant_id", "session_id", "bot_variant", "order_id", "step",
+    "deal", "ended_by", "ended_via", "price", "msg_count"
+]]
+
 
             st.dataframe(df, use_container_width=True, hide_index=True)
 
