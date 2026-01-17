@@ -739,9 +739,14 @@ def generate_reply(history, params: dict) -> str:
         counter = ensure_not_higher(human_price(raw_price, user_price))
         counter = clamp_counter_vs_user(counter, user_price)
         if counter is None:
-            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot unterbieten
-            counter = last_bot_offer
-
+            # User hat dein letztes Angebot erreicht/überboten -> kein Gegenangebot, sondern Deal-Signal
+            return call_openai([sys_msg] + history + [{
+                "role": "user",
+                "content": (
+                    f"Der Nutzer akzeptiert effektiv dein letztes Angebot ({last_bot_offer} €). "
+                    f"Bestätige den Deal kurz und dominant. Nenne genau {last_bot_offer} €."
+                )
+            }])
 
         instruct = (
             f"Der Nutzer bietet {user_price} €. "
@@ -1185,9 +1190,7 @@ if user_input and not st.session_state["closed"]:
 
     # 🔥 4) Bot-Angebot extrahieren & fixieren
     new_offer = extract_price_from_bot(bot_text)
-
-    if new_offer is not None:
-        st.session_state["bot_offer"] = new_offer
+    st.session_state["bot_offer"] = new_offer  # überschreibt auch mit None
 
 
 # 4) Chat-Verlauf anzeigen (inkl. frischer Bot-Antwort) 
