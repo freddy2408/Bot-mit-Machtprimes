@@ -141,7 +141,7 @@ def run_survey_and_stop():
         st.success("Vielen Dank! Ihre Antworten wurden gespeichert.")
 
         # ✅ zum Testen immer Button zeigen
-        st.link_button("➡️ Weiter zu Teil 2", get_next_url(PID, ORDER, BOT_VARIANT), use_container_width=True)
+        st.link_button("➡️ Weiter zu Verhandlung 2", get_next_url(PID, ORDER, BOT_VARIANT), use_container_width=True)
         st.caption("Bitte klicke auf den Button, um zum zweiten Teil zu gelangen.")
 
         st.stop()
