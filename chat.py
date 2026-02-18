@@ -594,8 +594,8 @@ def generate_reply(history_msgs, params: dict) -> str:
     user_price = extract_user_offer(last_user_msg)
 
 
-    # Dealbutton nur bei echtem Gegenangebot aktivieren
-    st.session_state["bot_offer"] = None
+    st.session_state["bot_offer"] = counter
+    st.session_state["last_bot_offer"] = counter
 
     msg_count = sum(1 for m in history_msgs if m["role"] == "assistant")
     last_bot_offer = st.session_state.get("last_bot_offer", None)
@@ -1026,8 +1026,7 @@ if user_input and not st.session_state["closed"]:
     # warn vs normal
     if decision == "warn":
         bot_text = msg
-        # bei Warnung keinen Dealbutton anzeigen
-        st.session_state["bot_offer"] = None
+
     else:
         bot_text = generate_reply(llm_history, st.session_state.params)
 
@@ -1076,7 +1075,11 @@ for item in st.session_state["history"]:
 if not st.session_state["closed"]:
     deal_col1, deal_col2 = st.columns([1, 1])
 
-    current_offer = st.session_state.get("bot_offer", None)
+    # Immer das letzte echte Angebot anzeigen, falls bot_offer in dieser Runde None ist
+    current_offer = st.session_state.get("bot_offer")
+    if current_offer is None:
+        current_offer = st.session_state.get("last_bot_offer")
+
     show_deal = (current_offer is not None)
 
     with deal_col1:
