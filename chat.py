@@ -264,6 +264,26 @@ def extract_user_offer(text: str) -> int | None:
     has_offer_intent = any(k in t for k in OFFER_KEYWORDS)
 
     if not (has_euro_hint or has_offer_intent):
+        # Fallback: wenn genau eine plausible Preiszahl im Text vorkommt, nimm sie trotzdem
+        nums = []
+        for m in PRICE_TOKEN_RE.finditer(text):
+            val = int(m.group(1))
+            if not (100 <= val <= 5000):
+                continue
+
+            after = text[m.end(): m.end() + 12]
+            if UNIT_WORDS_AFTER_NUMBER.search(after):
+                continue
+
+            if val in (13, 32, 64, 128, 256, 512, 1024, 2048):
+                continue
+
+            nums.append(val)
+
+        # Wenn es genau eine plausible Zahl ist (typisch: "was hältst du von 840")
+        if len(nums) == 1:
+            return nums[0]
+
         return None
 
     candidates = []
@@ -588,13 +608,21 @@ def generate_reply(history_msgs, params: dict) -> str:
 
     def clamp_counter_vs_user(counter: int, user_price_: int):
         nonlocal last_bot_offer
-        # User erreicht/überbietet letztes Angebot -> Deal-Signal
-        if last_bot_offer is not None and user_price_ >= last_bot_offer:
-            return None
+
+        # Deal-Toleranz: akzeptiere auch, wenn User bis zu 5€ unter dem letzten Bot-Angebot ist
+        # Aber niemals unter MIN akzeptieren.
+        if last_bot_offer is not None:
+            deal_threshold = max(MIN, last_bot_offer - 5)  # z.B. 885 -> 880, aber nie < 800
+            if user_price_ >= deal_threshold:
+                return None  # Deal-Signal
+
         # Verkäufer darf nicht unterbieten
         if counter <= user_price_:
             bump = random.choice([1, 2, 3]) if abs(counter - user_price_) <= 15 else 5
             counter = user_price_ + bump
+
+        # Sicherheit: nie unter Mindestpreis anbieten
+        counter = max(counter, MIN)
         return counter
 
     def human_price(raw_price: int, user_price_: int) -> int:
@@ -613,6 +641,8 @@ def generate_reply(history_msgs, params: dict) -> str:
         else:
             step = random.randint(5, 12)
         return max(base - step, min_price)
+
+######Preiszonen#########
 
     # Kein Preis erkannt
     if user_price is None:
@@ -682,10 +712,40 @@ def generate_reply(history_msgs, params: dict) -> str:
         history2 = [{"role": "system", "content": instruct}] + history_msgs
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
-    # D) >= 800
+    # D) 800–900
+    if 800 <= user_price < 900:
+        if last_bot_offer is None:
+            # näher am Mindestpreis: nicht mehr so aggressiv ankern wie ganz oben
+            raw = user_price + (random.randint(60, 110) if msg_count < 5 else random.randint(20, 55))
+        else:
+            raw = concession_step(last_bot_offer, MIN)
+
+        counter = ensure_not_higher(human_price(raw, user_price))
+        counter = clamp_counter_vs_user(counter, user_price)
+
+        if counter is None:
+            deal_price = last_bot_offer if last_bot_offer is not None else max(user_price + 5, MIN)
+            instruct_deal = (
+                f"Der Nutzer akzeptiert effektiv dein letztes Angebot ({deal_price} €). "
+                f"Bestätige kurz und dominant. Nenne GENAU {deal_price} € und keine weitere Zahl."
+            )
+            history2 = [{"role": "system", "content": instruct_deal}] + history_msgs
+            return llm_with_price_guard(history2, params, user_price=None, counter=deal_price, allow_no_price=False)
+
+        st.session_state["bot_offer"] = counter
+        st.session_state["last_bot_offer"] = counter
+
+        instruct = (
+            f"Der Nutzer bietet {user_price} €. "
+            f"Setze ein bestimmtes Gegenangebot: {counter} €. 2–4 dominante Sätze."
+        )
+        history2 = [{"role": "system", "content": instruct}] + history_msgs
+        return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
+
+    # D) >= 900
     if user_price >= 800:
         if last_bot_offer is None:
-            raw = user_price + (random.randint(60, 100) if msg_count < 3 else random.randint(15, 40))
+            raw = user_price + (random.randint(30, 70) if msg_count < 5 else random.randint(10, 40))
         else:
             raw = concession_step(last_bot_offer, MIN)
 
