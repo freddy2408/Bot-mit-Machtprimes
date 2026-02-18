@@ -593,10 +593,6 @@ def generate_reply(history_msgs, params: dict) -> str:
     last_user_msg = next((m["content"] for m in reversed(history_msgs) if m["role"] == "user"), "")
     user_price = extract_user_offer(last_user_msg)
 
-
-    st.session_state["bot_offer"] = counter
-    st.session_state["last_bot_offer"] = counter
-
     msg_count = sum(1 for m in history_msgs if m["role"] == "assistant")
     last_bot_offer = st.session_state.get("last_bot_offer", None)
 
@@ -751,8 +747,8 @@ def generate_reply(history_msgs, params: dict) -> str:
         history2 = [{"role": "system", "content": instruct}] + history_msgs
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
-    # D) >= 900
-    if user_price >= 800:
+    # E) >= 900
+    if user_price >= 900:
         if last_bot_offer is None:
             raw = user_price + (random.randint(30, 70) if msg_count < 5 else random.randint(10, 40))
         else:
@@ -1088,7 +1084,7 @@ if not st.session_state["closed"]:
             disabled=not show_deal,
             use_container_width=True
         ):
-            bot_price = st.session_state.get("bot_offer")
+            bot_price = current_offer
             msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
 
             log_result(
