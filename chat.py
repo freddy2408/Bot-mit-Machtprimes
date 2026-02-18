@@ -573,18 +573,27 @@ def llm_with_price_guard(history_msgs, params: dict, user_price: int | None, cou
 
 def llm_no_price_reply(history_msgs, params: dict, reason: str = "") -> str:
     instruct = (
-        "Formuliere 2–4 Sätze im dominanten, kalten Stil.\n"
-        "Fordere den Nutzer auf, eine konkrete Zahl in € zu nennen.\n"
-        "WICHTIG: Nenne KEINEN Preis, KEINE Eurobeträge und keine konkreten Zahlenangebote.\n"
-        f"Kontext: {reason}."
+        "Du bist ein dominanter, kalter Verkäufer.\n"
+        "Antworte 2–4 Sätze.\n"
+        "Aufgabe: Reagiere INHALTLICH auf die letzte Nachricht (z.B. Einwand, Nachfrage, Kommentar).\n"
+        "Dann führe die Verhandlung zurück zum Preis: Bitte um ein konkretes Angebot in €.\n"
+        "WICHTIG:\n"
+        "- Nenne KEINE Zahlen, KEINE Eurobeträge, KEINE Preis-Spannen und KEINE Prozentangaben.\n"
+        "- Verweise darauf, dass das letzte Angebot weiterhin steht, bis ein neues Angebot kommt.\n"
+        "- Kein Smalltalk, keine Entschuldigungen.\n"
+        f"Kontext/Grund: {reason}."
     )
     history2 = [{"role": "system", "content": instruct}] + history_msgs
     return llm_with_price_guard(history2, params, user_price=None, counter=None, allow_no_price=True)
 
+
+########Generate Reply###########
+
+
 def generate_reply(history_msgs, params: dict) -> str:
-    # letzte User-Nachricht -> Preis
     last_user_msg = next((m["content"] for m in reversed(history_msgs) if m["role"] == "user"), "")
     user_price = extract_user_offer(last_user_msg)
+
 
     # Dealbutton nur bei echtem Gegenangebot aktivieren
     st.session_state["bot_offer"] = None
@@ -647,6 +656,7 @@ def generate_reply(history_msgs, params: dict) -> str:
     # Kein Preis erkannt
     if user_price is None:
         return llm_no_price_reply(history_msgs, params, reason="no_price_detected")
+
 
     # A) < 600: Ablehnen ohne Gegenangebot
     if user_price < 600:
