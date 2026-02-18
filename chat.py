@@ -605,35 +605,91 @@ def generate_reply(history_msgs, params: dict) -> str:
             return round_to_5(raw_price + random.choice([-7, -3, 0, 3, 7]))
         return round_to_5(raw_price)
 
-    def concession_step(base: int, min_price: int) -> int:
-        if base > 930:
-            step = random.randint(15, 30)
-        elif base > 880:
-            step = random.randint(10, 20)
+    def round_human(x: int) -> int:
+        # eBay/Kleinanzeigen-typische Endungen
+        endings = [0, 5, 9]
+        base = int(round(x / 10) * 10)
+        # wähle Endung, die am nächsten an x liegt
+        candidates = [base + e for e in endings] + [base - 10 + e for e in endings]
+        return min(candidates, key=lambda c: abs(c - x))
+
+    def calc_step(last_bot_offer: int, min_price: int, user_price: int,
+                  last_user_price: int | None, round_idx: int) -> int:
+        gap = max(last_bot_offer - user_price, 0)
+        remaining = max(last_bot_offer - min_price, 0)
+        user_move = 0 if last_user_price is None else max(user_price - last_user_price, 0)
+
+        # Decreasing concessions (je mehr Runden, desto kleiner)
+        round_factor = max(0.55, 1.0 - 0.08 * min(round_idx, 6))
+
+        # Basis: Anteil des Gaps (realistische Verhandlung)
+        base = int(gap * random.uniform(0.18, 0.28) * round_factor)
+
+        # Endgame-Caps abhängig vom remaining (nicht vom user-price!)
+        if remaining < 25:
+            cap = random.randint(3, 6)
+        elif remaining < 50:
+            cap = random.randint(5, 10)
+        elif remaining < 90:
+            cap = random.randint(8, 15)
         else:
-            step = random.randint(5, 12)
-        return max(base - step, min_price)
+            cap = random.randint(15, 30)
 
-    # Kein Preis erkannt
-    if user_price is None:
-        return llm_no_price_reply(history_msgs, params, reason="no_price_detected")
+        base = max(5, min(base, cap))
 
-    # A) < 600: Ablehnen ohne Gegenangebot
-    if user_price < 600:
-        instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            "Lehne klar und hart ab. Kein Gegenangebot. "
-            "Keine Einladung zu weiterem Dialog. 2–4 Sätze."
+        # Tit-for-tat: belohne User-Bewegung
+        if user_move > 0:
+            tft = int(user_move * random.uniform(0.45, 0.75))
+            step = min(base, max(5, tft))
+        else:
+            step = max(5, int(base * 0.6))
+
+        # nie mehr als remaining
+        step = min(step, remaining)
+
+        # wenn großer Gap, nie komplett stehen bleiben
+        if gap > 60:
+            step = max(step, 5)
+
+        return step
+
+    def next_counter(last_bot_offer: int | None, list_price: int, min_price: int,
+                    user_price: int, last_user_price: int | None, round_idx: int) -> int | None:
+        # Wenn User >= letztes Angebot -> Deal-Signal
+        if last_bot_offer is not None and user_price >= last_bot_offer:
+            return None
+
+        # First counter: stark ankern, aber nicht absurd
+        if last_bot_offer is None:
+            # abhängig vom user_price leicht variieren, aber immer hoch ansetzen
+            anchor = max(user_price + random.randint(140, 220), random.randint(940, 995))
+            anchor = min(anchor, list_price)
+            counter = anchor
+        else:
+            step = calc_step(last_bot_offer, min_price, user_price, last_user_price, round_idx)
+            counter = last_bot_offer - step
+
+        # Verkäufer unterbietet User nie
+        if counter <= user_price:
+            bump = random.choice([5, 8, 10]) if abs(user_price - counter) <= 20 else 15
+            counter = user_price + bump
+
+        counter = max(counter, min_price)
+        counter = round_human(counter)
+        return counter
+
+    # B/C/D) >= 600: dynamische Preiszonen (realistisch, decreasing concessions)
+    if user_price >= 600:
+        counter = next_counter(
+            last_bot_offer=last_bot_offer,
+            list_price=LIST,
+            min_price=MIN,
+            user_price=user_price,
+            last_user_price=st.session_state.get("last_user_price"),
+            round_idx=msg_count
         )
-        history2 = [{"role": "system", "content": instruct}] + history_msgs
-        return llm_with_price_guard(history2, params, user_price=user_price, counter=None, allow_no_price=True)
 
-    # B) 600–699: hohes Gegenangebot
-    if 600 <= user_price < 700:
-        raw = random.randint(920, 990) if last_bot_offer is None else concession_step(last_bot_offer, MIN)
-        counter = ensure_not_higher(human_price(raw, user_price))
-        counter = clamp_counter_vs_user(counter, user_price)
-
+        # Deal-Fall (User erreicht letztes Angebot)
         if counter is None:
             deal_price = last_bot_offer if last_bot_offer is not None else max(user_price + 5, MIN)
             instruct_deal = (
@@ -643,6 +699,7 @@ def generate_reply(history_msgs, params: dict) -> str:
             history2 = [{"role": "system", "content": instruct_deal}] + history_msgs
             return llm_with_price_guard(history2, params, user_price=None, counter=deal_price, allow_no_price=False)
 
+        # Gegenangebot setzen
         st.session_state["bot_offer"] = counter
         st.session_state["last_bot_offer"] = counter
 
@@ -653,64 +710,6 @@ def generate_reply(history_msgs, params: dict) -> str:
         history2 = [{"role": "system", "content": instruct}] + history_msgs
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
-    # C) 700–799
-    if 700 <= user_price < 800:
-        if last_bot_offer is None:
-            raw = random.randint(910, 960) if msg_count < 3 else random.randint(850, 930)
-        else:
-            raw = concession_step(last_bot_offer, MIN)
-
-        counter = ensure_not_higher(human_price(raw, user_price))
-        counter = clamp_counter_vs_user(counter, user_price)
-
-        if counter is None:
-            deal_price = last_bot_offer if last_bot_offer is not None else max(user_price + 5, MIN)
-            instruct_deal = (
-                f"Der Nutzer akzeptiert effektiv dein letztes Angebot ({deal_price} €). "
-                f"Bestätige kurz und dominant. Nenne GENAU {deal_price} € und keine weitere Zahl."
-            )
-            history2 = [{"role": "system", "content": instruct_deal}] + history_msgs
-            return llm_with_price_guard(history2, params, user_price=None, counter=deal_price, allow_no_price=False)
-
-        st.session_state["bot_offer"] = counter
-        st.session_state["last_bot_offer"] = counter
-
-        instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein bestimmtes Gegenangebot: {counter} €. 2–4 dominante Sätze."
-        )
-        history2 = [{"role": "system", "content": instruct}] + history_msgs
-        return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
-
-    # D) >= 800
-    if user_price >= 800:
-        if last_bot_offer is None:
-            raw = user_price + (random.randint(60, 100) if msg_count < 3 else random.randint(15, 40))
-        else:
-            raw = concession_step(last_bot_offer, MIN)
-
-        raw = min(raw, LIST)
-        counter = ensure_not_higher(human_price(raw, user_price))
-        counter = clamp_counter_vs_user(counter, user_price)
-
-        if counter is None:
-            deal_price = last_bot_offer if last_bot_offer is not None else max(user_price + 5, MIN)
-            instruct_deal = (
-                f"Der Nutzer akzeptiert effektiv dein letztes Angebot ({deal_price} €). "
-                f"Bestätige kurz und dominant. Nenne GENAU {deal_price} € und keine weitere Zahl."
-            )
-            history2 = [{"role": "system", "content": instruct_deal}] + history_msgs
-            return llm_with_price_guard(history2, params, user_price=None, counter=deal_price, allow_no_price=False)
-
-        st.session_state["bot_offer"] = counter
-        st.session_state["last_bot_offer"] = counter
-
-        instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein präzises Gegenangebot: {counter} €. 2–4 dominante Sätze."
-        )
-        history2 = [{"role": "system", "content": instruct}] + history_msgs
-        return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
     # Fallback (sollte nie laufen)
     new_price = max(concession_step(last_bot_offer or LIST, MIN), MIN)
