@@ -579,7 +579,6 @@ def llm_no_price_reply(history_msgs, params: dict, reason: str = "") -> str:
         "Dann führe die Verhandlung zurück zum Preis: Bitte um ein konkretes Angebot in €.\n"
         "WICHTIG:\n"
         "- Nenne KEINE Zahlen, KEINE Eurobeträge, KEINE Preis-Spannen und KEINE Prozentangaben.\n"
-        "- Verweise darauf, dass das letzte Angebot weiterhin steht, bis ein neues Angebot kommt.\n"
         "- Kein Smalltalk, keine Entschuldigungen.\n"
         f"Kontext/Grund: {reason}."
     )
