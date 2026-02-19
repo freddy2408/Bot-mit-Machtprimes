@@ -399,6 +399,11 @@ def user_accepts_price(user_text: str, bot_price: int) -> bool:
     nums = re.findall(r"\d{2,5}", text)
     return (not nums) or (int(nums[0]) == bot_price)
 
+def is_close_enough_deal(user_price: int | None, bot_price: int | None, tol: int = 5) -> bool:
+    if user_price is None or bot_price is None:
+        return False
+    return abs(user_price - bot_price) <= tol
+
 # -----------------------------
 # System Prompt
 # -----------------------------
@@ -1018,6 +1023,67 @@ if user_input and not st.session_state["closed"]:
         )
         run_survey_and_stop()
         st.stop()
+
+    # ✅ AUTO-DEAL: wenn User-Preis und letztes Bot-Angebot max. 5€ auseinanderliegen
+    last_offer = st.session_state.get("last_bot_offer")
+    if user_price is not None and last_offer is not None and is_close_enough_deal(user_price, last_offer, tol=5):
+        # Preis, den wir final akzeptieren:
+        # - Wenn User höher bietet als Bot: nimm User (für Verkäufer besser)
+        # - Wenn User bis zu 5€ drunter ist: nimm User (du wolltest "okay, den nehmen wir")
+        deal_price = max(user_price, st.session_state.params["min_price"])
+
+        # Bot schreibt die Annahme (LLM, aber strikt nur diese Zahl erlaubt)
+        instruct_deal = (
+            f"Der Nutzer bietet {user_price} €. "
+            f"Ihr liegt maximal 5 € auseinander. "
+            f"Nimm das Angebot an. Bestätige kurz und dominant. "
+            f"Nenne GENAU {deal_price} € und keine weitere Zahl."
+        )
+        llm_history2 = [{"role": "system", "content": instruct_deal}] + llm_history
+        bot_text = llm_with_price_guard(
+            llm_history2,
+            st.session_state.params,
+            user_price=user_price,
+            counter=deal_price,
+            allow_no_price=False
+        )
+
+        # State setzen, damit UI/Survey sauber greifen
+        st.session_state["bot_offer"] = deal_price
+        st.session_state["last_bot_offer"] = deal_price
+        st.session_state["final_bot_price"] = deal_price
+        st.session_state["agreed_price"] = deal_price
+        st.session_state["closed"] = True
+
+        # Bot-Nachricht speichern + loggen
+        st.session_state["history"].append({
+            "role": "assistant",
+            "text": bot_text,
+            "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
+        })
+        msg_index = len(st.session_state["history"]) - 1
+        log_chat_message(
+            st.session_state["session_id"],
+            "assistant",
+            bot_text,
+            datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
+            msg_index
+        )
+
+        # Ergebnis loggen: Bot nimmt an
+        msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
+        log_result(
+            st.session_state["session_id"],
+            True,
+            deal_price,
+            msg_count,
+            ended_by="bot",
+            ended_via="auto_deal_gap"
+        )
+
+        run_survey_and_stop()
+        st.stop()
+
 
     # warn vs normal
     if decision == "warn":
