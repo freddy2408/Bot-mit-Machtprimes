@@ -63,7 +63,8 @@ if "bot_offer" not in st.session_state:
 if "last_bot_offer" not in st.session_state:
     st.session_state["last_bot_offer"] = None
 
-st.session_state["snap_to_user"] = False
+if "snap_to_user" not in st.session_state:
+    st.session_state["snap_to_user"] = False
 
 if "end_kind" not in st.session_state:
     st.session_state["end_kind"] = None   # "deal" oder "abort"
@@ -265,7 +266,7 @@ PRICE_TOKEN_RE = re.compile(r"(?<!\d)(\d{2,5})(?!\d)")
 OFFER_KEYWORDS = [
     "ich biete", "biete", "mein angebot", "angebot", "zahle", "ich zahle",
     "würde geben", "ich würde geben", "kann geben", "gebe", "preis wäre", "mein preis",
-    "für", "bei"
+    "für", "bei", "mach"
 ]
 
 UNIT_WORDS_AFTER_NUMBER = re.compile(
@@ -729,8 +730,8 @@ def generate_reply(history_msgs, params: dict) -> str:
         history2 = [{"role": "system", "content": instruct}] + history_msgs
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
-    # C) 700–800
-    if 700 <= user_price < 800:
+    # C) 700–801
+    if 700 <= user_price < 801:
         if last_bot_offer is None:
             raw = random.randint(910, 960) if msg_count < 3 else random.randint(850, 930)
         else:
@@ -759,8 +760,8 @@ def generate_reply(history_msgs, params: dict) -> str:
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
 
-    # D) 800–900
-    if 800 <= user_price < 900:
+    # D) 801–900
+    if 801 <= user_price < 900:
         if last_bot_offer is None:
             # näher am Mindestpreis: nicht mehr so aggressiv ankern wie ganz oben
             raw = user_price + (random.randint(60, 110) if msg_count < 5 else random.randint(20, 55))
@@ -1039,7 +1040,7 @@ if user_input and not st.session_state["closed"]:
 
         st.session_state["end_kind"] = "abort"
         st.session_state["end_price"] = None
-        st.session_state["end_note"] = "Die Verhandlung wurde beendet. Es wurde keine Einigung gefunden. Bitte fülle nun den Abschlussfragebogen aus."
+        st.session_state["end_note"] = "Die Verhandlung wurde vom Verkäufer beendet. Bitte fülle nun den Abschlussfragebogen aus."
 
         msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
         log_result(st.session_state["session_id"], False, None, msg_count, ended_by="bot", ended_via="abort_rule")
