@@ -1039,7 +1039,7 @@ if user_input and not st.session_state["closed"]:
 
         st.session_state["end_kind"] = "abort"
         st.session_state["end_price"] = None
-        st.session_state["end_note"] = "Die Verhandlung wurde beendet. Bitte fülle nun den Abschlussfragebogen aus."
+        st.session_state["end_note"] = "Die Verhandlung wurde beendet. Es wurde keine Einigung gefunden. Bitte fülle nun den Abschlussfragebogen aus."
 
         msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
         log_result(st.session_state["session_id"], False, None, msg_count, ended_by="bot", ended_via="abort_rule")
