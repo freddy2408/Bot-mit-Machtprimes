@@ -63,6 +63,8 @@ if "bot_offer" not in st.session_state:
 if "last_bot_offer" not in st.session_state:
     st.session_state["last_bot_offer"] = None
 
+st.session_state["snap_to_user"] = False
+
 # -----------------------------
 # Participant ID + Order/Step
 # -----------------------------
@@ -618,28 +620,29 @@ def generate_reply(history_msgs, params: dict) -> str:
     def clamp_counter_vs_user(counter: int, user_price_: int):
         nonlocal last_bot_offer
 
-        # Deal-Toleranz: akzeptiere auch, wenn User bis zu 5€ unter dem letzten Bot-Angebot ist
-        # Aber niemals unter MIN akzeptieren.
+        # 1) Deine bestehende Deal-Toleranz ggü. letztem Bot-Angebot bleibt:
+        #    Wenn User nahe am letzten Bot-Angebot ist, soll der Bot bei SEINEM Preis bleiben.
         if last_bot_offer is not None:
-            deal_threshold = max(MIN, last_bot_offer - 5)  # z.B. 885 -> 880, aber nie < 800
+            deal_threshold = max(MIN, last_bot_offer - 5)
             if user_price_ >= deal_threshold:
-                return None  # Deal-Signal
+                st.session_state["snap_to_user"] = False
+                return last_bot_offer  # Botpreis bleibt last_bot_offer (nicht User!)
 
-        # Verkäufer darf nicht unterbieten
+        # 2) NEU: Wenn das *berechnete* Gegenangebot fast gleich dem User ist,
+        #    snappe counter auf Userpreis (damit es als Botpreis gilt, kein +1€ Bullshit)
+        if user_price_ >= MIN and abs(counter - user_price_) < 5:
+            st.session_state["snap_to_user"] = True
+            return user_price_
+
+        # 3) Verkäufer darf nicht unterbieten (nur wenn NICHT gesnappt)
         if counter <= user_price_:
-            bump = random.choice([1, 2, 3]) if abs(counter - user_price_) <= 15 else 5
-            counter = user_price_ + bump
+            counter = user_price_ + 5  # sauber, ohne Rauschen
 
-        # Sicherheit: nie unter Mindestpreis anbieten
-        counter = max(counter, MIN)
-        return counter
+        return max(counter, MIN)
+
+
 
     def human_price(raw_price: int, user_price_: int) -> int:
-        diff = abs(raw_price - user_price_)
-        if diff <= 15:
-            return raw_price + random.choice([-3, -2, -1, 0, 1, 2, 3])
-        if diff <= 30:
-            return round_to_5(raw_price + random.choice([-7, -3, 0, 3, 7]))
         return round_to_5(raw_price)
 
     def concession_step(base: int, min_price: int) -> int:
@@ -722,6 +725,7 @@ def generate_reply(history_msgs, params: dict) -> str:
         history2 = [{"role": "system", "content": instruct}] + history_msgs
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
+
     # D) 800–900
     if 800 <= user_price < 900:
         if last_bot_offer is None:
@@ -733,24 +737,24 @@ def generate_reply(history_msgs, params: dict) -> str:
         counter = ensure_not_higher(human_price(raw, user_price))
         counter = clamp_counter_vs_user(counter, user_price)
 
-        if counter is None:
-            deal_price = last_bot_offer if last_bot_offer is not None else max(user_price + 5, MIN)
-            instruct_deal = (
-                f"Der Nutzer akzeptiert effektiv dein letztes Angebot ({deal_price} €). "
-                f"Bestätige kurz und dominant. Nenne GENAU {deal_price} € und keine weitere Zahl."
-            )
-            history2 = [{"role": "system", "content": instruct_deal}] + history_msgs
-            return llm_with_price_guard(history2, params, user_price=None, counter=deal_price, allow_no_price=False)
-
         st.session_state["bot_offer"] = counter
         st.session_state["last_bot_offer"] = counter
 
-        instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein bestimmtes Gegenangebot: {counter} €. 2–4 dominante Sätze."
-        )
+        if st.session_state.get("snap_to_user"):
+            instruct = (
+                f"Der Nutzer bietet {user_price} €. "
+                f"Nimm das Angebot an. Bestätige kurz und dominant. "
+                f"Nenne GENAU {counter} € und keine weitere Zahl."
+            )
+        else:
+            instruct = (
+                f"Der Nutzer bietet {user_price} €. "
+                f"Setze ein bestimmtes Gegenangebot: {counter} €. 2–4 dominante Sätze."
+            )
+
         history2 = [{"role": "system", "content": instruct}] + history_msgs
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
+
 
     # E) >= 900
     if user_price >= 900:
@@ -763,22 +767,21 @@ def generate_reply(history_msgs, params: dict) -> str:
         counter = ensure_not_higher(human_price(raw, user_price))
         counter = clamp_counter_vs_user(counter, user_price)
 
-        if counter is None:
-            deal_price = last_bot_offer if last_bot_offer is not None else max(user_price + 5, MIN)
-            instruct_deal = (
-                f"Der Nutzer akzeptiert effektiv dein letztes Angebot ({deal_price} €). "
-                f"Bestätige kurz und dominant. Nenne GENAU {deal_price} € und keine weitere Zahl."
-            )
-            history2 = [{"role": "system", "content": instruct_deal}] + history_msgs
-            return llm_with_price_guard(history2, params, user_price=None, counter=deal_price, allow_no_price=False)
-
         st.session_state["bot_offer"] = counter
         st.session_state["last_bot_offer"] = counter
 
-        instruct = (
-            f"Der Nutzer bietet {user_price} €. "
-            f"Setze ein präzises Gegenangebot: {counter} €. 2–4 dominante Sätze."
-        )
+        if st.session_state.get("snap_to_user"):
+            instruct = (
+                f"Der Nutzer bietet {user_price} €. "
+                f"Nimm das Angebot an. Bestätige kurz und dominant. "
+                f"Nenne GENAU {counter} € und keine weitere Zahl."
+            )
+        else:
+            instruct = (
+                f"Der Nutzer bietet {user_price} €. "
+                f"Setze ein bestimmtes Gegenangebot: {counter} €. 2–4 dominante Sätze."
+            )
+
         history2 = [{"role": "system", "content": instruct}] + history_msgs
         return llm_with_price_guard(history2, params, user_price=user_price, counter=counter, allow_no_price=False)
 
