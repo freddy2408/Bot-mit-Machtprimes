@@ -65,6 +65,15 @@ if "last_bot_offer" not in st.session_state:
 
 st.session_state["snap_to_user"] = False
 
+if "end_kind" not in st.session_state:
+    st.session_state["end_kind"] = None   # "deal" oder "abort"
+
+if "end_note" not in st.session_state:
+    st.session_state["end_note"] = ""     # erklärender Text für User
+
+if "end_price" not in st.session_state:
+    st.session_state["end_price"] = None  # finaler Dealpreis (falls Deal)
+
 # -----------------------------
 # Participant ID + Order/Step
 # -----------------------------
@@ -127,6 +136,30 @@ def run_survey_and_stop():
     if st.session_state.get("admin_reset_done"):
         st.stop()
 
+    # ✅ NEU: Abschluss-Hinweis anzeigen, bevor der Fragebogen kommt
+    kind = st.session_state.get("end_kind")
+    note = st.session_state.get("end_note", "")
+    price = st.session_state.get("end_price")
+
+    st.markdown("## ✅ Verhandlung abgeschlossen")
+    if kind == "deal":
+        st.success(
+            f"Die Verhandlung wurde erfolgreich abgeschlossen."
+            + (f" **Deal-Preis: {price} €**." if price is not None else "")
+        )
+        if note:
+            st.info(note)
+    elif kind == "abort":
+        st.warning("Die Verhandlung wurde beendet.")
+        if note:
+            st.info(note)
+    else:
+        # Fallback, falls irgendwas mal keinen Grund gesetzt hat
+        st.info("Die Verhandlung ist beendet. Bitte füllen Sie nun den Fragebogen aus.")
+
+    st.markdown("---")
+
+    # Danach erst der Fragebogen
     survey_data = show_survey()
 
     if isinstance(survey_data, dict):
@@ -1004,6 +1037,10 @@ if user_input and not st.session_state["closed"]:
             "ts": datetime.now(tz).strftime("%d.%m.%Y %H:%M"),
         })
 
+        st.session_state["end_kind"] = "abort"
+        st.session_state["end_price"] = None
+        st.session_state["end_note"] = "Die Verhandlung wurde beendet. Bitte fülle nun den Abschlussfragebogen aus."
+
         msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
         log_result(st.session_state["session_id"], False, None, msg_count, ended_by="bot", ended_via="abort_rule")
         run_survey_and_stop()
@@ -1014,6 +1051,10 @@ if user_input and not st.session_state["closed"]:
     if last_offer and user_accepts_price(user_input, last_offer):
         st.session_state["final_bot_price"] = last_offer
         st.session_state["closed"] = True
+
+        st.session_state["end_kind"] = "deal"
+        st.session_state["end_price"] = last_offer
+        st.session_state["end_note"] = "Du hast den Deal per Nachricht bestätigt. Jetzt folgt der kurze Abschlussfragebogen."
 
         msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
         log_result(
@@ -1034,6 +1075,10 @@ if user_input and not st.session_state["closed"]:
         # - Wenn User höher bietet als Bot: nimm User (für Verkäufer besser)
         # - Wenn User bis zu 5€ drunter ist: nimm User (du wolltest "okay, den nehmen wir")
         deal_price = max(user_price, st.session_state.params["min_price"])
+
+        st.session_state["end_kind"] = "deal"
+        st.session_state["end_price"] = deal_price
+        st.session_state["end_note"] = "Der Preis lag sehr nah am letzten Angebot, daher wurde automatisch ein Deal geschlossen. Jetzt folgt der kurze Abschlussfragebogen."
 
         # Bot schreibt die Annahme (LLM, aber strikt nur diese Zahl erlaubt)
         instruct_deal = (
@@ -1164,6 +1209,10 @@ if not st.session_state["closed"]:
                 ended_by="user",
                 ended_via="deal_button"
             )
+            st.session_state["end_kind"] = "deal"
+            st.session_state["end_price"] = bot_price
+            st.session_state["end_note"] = "Du hast den Deal über den Button bestätigt. Jetzt folgt der kurze Abschlussfragebogen."
+
 
             st.session_state["final_bot_price"] = bot_price
             st.session_state["closed"] = True
@@ -1174,6 +1223,10 @@ if not st.session_state["closed"]:
         if st.button("❌ Verhandlung beenden", use_container_width=True):
             msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
             log_result(st.session_state["session_id"], False, None, msg_count, ended_by="user", ended_via="abort_button")
+
+            st.session_state["end_kind"] = "abort"
+            st.session_state["end_price"] = None
+            st.session_state["end_note"] = "Du hast die Verhandlung über den Button beendet. Jetzt folgt der kurze Abschlussfragebogen."
 
             st.session_state["closed"] = True
             run_survey_and_stop()
