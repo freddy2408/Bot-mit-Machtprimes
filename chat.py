@@ -8,6 +8,7 @@ from datetime import datetime
 import streamlit as st
 import base64
 import pytz
+import pandas as pd
 from db_common import get_conn, init_db
 
 from survey import show_survey
@@ -920,7 +921,7 @@ def log_chat_message(session_id: str, role: str, text: str, ts: str, msg_index: 
     conn.commit()
     conn.close()
 
-def load_chat_for_session(session_id: str) -> pd.DataFrame:
+def load_chat_for_session(session_id: str):
     init_db()
     conn = get_conn()
     df = pd.read_sql_query("""
