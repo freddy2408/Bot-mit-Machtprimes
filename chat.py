@@ -933,7 +933,7 @@ def load_chat_for_session(session_id: str):
     conn.close()
     return df
 
-def load_results_df() -> pd.DataFrame:
+def load_results_df():
     init_db()
     conn = get_conn()
     df = pd.read_sql_query("""
