@@ -951,14 +951,24 @@ def load_results_df():
         df["ended_via"] = df["ended_via"].fillna("")
     return df
 
-def export_all_chats_to_txt() -> str:
+def export_all_chats_to_txt(bot_variant: str | None = None) -> str:
     init_db()
     conn = get_conn()
-    df = pd.read_sql_query("""
-        SELECT session_id, role, text, ts, msg_index
-        FROM chat_messages
-        ORDER BY session_id, msg_index ASC
-    """, conn)
+
+    if bot_variant:
+        df = pd.read_sql_query("""
+            SELECT session_id, role, text, ts, msg_index
+            FROM chat_messages
+            WHERE bot_variant = %s
+            ORDER BY session_id, msg_index ASC
+        """, conn, params=(bot_variant,))
+    else:
+        df = pd.read_sql_query("""
+            SELECT session_id, role, text, ts, msg_index
+            FROM chat_messages
+            ORDER BY session_id, msg_index ASC
+        """, conn)
+
     conn.close()
 
     if df.empty:
