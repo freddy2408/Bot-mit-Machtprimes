@@ -1243,11 +1243,28 @@ else:
 if pwd_ok:
     st.sidebar.success("Zugang gewährt.")
 
+    # Optional aber sehr hilfreich: pro Bot filtern
+    bot_filter = st.sidebar.selectbox(
+        "Bot-Filter",
+        options=["Alle", BOT_VARIANT],
+        index=1
+    )
+    bot_variant_for_queries = None if bot_filter == "Alle" else BOT_VARIANT
+
+    # --- Survey
     with st.sidebar.expander("📋 Umfrageergebnisse", expanded=False):
         init_db()
         conn = get_conn()
-        df_s = pd.read_sql_query("SELECT * FROM survey ORDER BY id ASC", conn)
+        if bot_variant_for_queries:
+            df_s = pd.read_sql_query(
+                "SELECT * FROM survey WHERE bot_variant = %s ORDER BY id ASC",
+                conn,
+                params=(bot_variant_for_queries,)
+            )
+        else:
+            df_s = pd.read_sql_query("SELECT * FROM survey ORDER BY id ASC", conn)
         conn.close()
+
         if df_s.empty:
             st.info("Noch keine Umfrage-Daten vorhanden.")
         else:
@@ -1266,22 +1283,26 @@ if pwd_ok:
                 use_container_width=True
             )
 
+    # --- Results + Chats
     with st.sidebar.expander("Alle Verhandlungsergebnisse", expanded=True):
         df = load_results_df()
-        if len(df) == 0:
+        if bot_variant_for_queries:
+            df = df[df["bot_variant"] == bot_variant_for_queries].copy()
+
+        if df.empty:
             st.write("Noch keine Ergebnisse gespeichert.")
         else:
             df = df.reset_index(drop=True)
             df["nr"] = df.index + 1
-            df = df[[
+            df_view = df[[
                 "nr", "ts", "participant_id", "session_id", "bot_variant", "order_id", "step",
                 "deal", "ended_by", "ended_via", "price", "msg_count"
             ]]
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df_view, use_container_width=True, hide_index=True)
 
             from io import BytesIO
             buffer = BytesIO()
-            df.to_excel(buffer, index=False)
+            df_view.to_excel(buffer, index=False)
             buffer.seek(0)
 
             st.download_button(
@@ -1292,8 +1313,9 @@ if pwd_ok:
                 use_container_width=True,
             )
 
+        # --- Chat Export (TXT)
         st.markdown("### 📥 Chat-Export")
-        chat_txt = export_all_chats_to_txt()
+        chat_txt = export_all_chats_to_txt(bot_variant=bot_variant_for_queries)
         st.download_button(
             label="📄 Alle Chats als TXT herunterladen",
             data=chat_txt,
@@ -1302,33 +1324,42 @@ if pwd_ok:
             use_container_width=True
         )
 
+        # --- Chat Anzeige
         st.markdown("---")
         st.subheader("💬 Chatverlauf anzeigen")
 
-        if len(df) > 0:
-            selected_session = st.selectbox("Verhandlung auswählen", df["session_id"].unique())
+        if not df.empty:
+            sessions = df["session_id"].dropna().unique().tolist()
+            selected_session = st.selectbox("Verhandlung auswählen", sessions)
+
             if selected_session:
                 chat_df = load_chat_for_session(selected_session)
-                st.markdown("### 💬 Chatverlauf")
 
-                for _, row in chat_df.iterrows():
-                    is_user = row["role"] == "user"
-                    avatar_b64 = USER_AVATAR if is_user else BOT_AVATAR
-                    side = "right" if is_user else "left"
-                    klass = "msg-user" if is_user else "msg-bot"
+                if chat_df.empty:
+                    st.info("Für diese Session wurden keine Chat-Nachrichten gespeichert.")
+                else:
+                    st.markdown("### 💬 Chatverlauf")
+                    for _, row in chat_df.iterrows():
+                        is_user = row["role"] == "user"
+                        avatar_b64 = USER_AVATAR if is_user else BOT_AVATAR
+                        side = "right" if is_user else "left"
+                        klass = "msg-user" if is_user else "msg-bot"
 
-                    st.markdown(f"""
-                    <div class="row {side}">
-                        <img src="data:image/png;base64,{avatar_b64}" class="avatar">
-                        <div class="chat-bubble {klass}">
-                            {row["text"]}
+                        # Achtung: text in HTML. Wenn ihr ganz sicher sein wollt,
+                        # escaped den Text (z.B. html.escape(row["text"])) bevor ihr ihn einsetzt.
+                        st.markdown(f"""
+                        <div class="row {side}">
+                            <img src="data:image/png;base64,{avatar_b64}" class="avatar">
+                            <div class="chat-bubble {klass}">
+                                {row["text"]}
+                            </div>
                         </div>
-                    </div>
-                    <div class="row {side}">
-                        <div class="meta">{row["ts"]}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                        <div class="row {side}">
+                            <div class="meta">{row["ts"]}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
 
+    # --- Admin Tools
     st.sidebar.markdown("---")
     st.sidebar.subheader("Admin-Tools")
 
