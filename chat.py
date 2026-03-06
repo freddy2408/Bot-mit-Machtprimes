@@ -10,6 +10,7 @@ import base64
 import pytz
 import pandas as pd
 from db_common import get_conn, init_db
+import streamlit.components.v1 as components
 
 from survey import show_survey
 from power_primes import (
@@ -225,30 +226,29 @@ def run_survey_and_stop():
         st.success("Vielen Dank! Ihre Antworten wurden gespeichert.")
 
         if STEP == "1":
-            st.link_button(
-                "➡️ Weiter zu Verhandlung 2",
-                get_next_url(PID, ORDER, BOT_VARIANT),
-                use_container_width=True
-            )
-            st.caption("Bitte klicken Sie auf den Button, um zur zweiten Verhandlung zu gelangen.")
-            st.stop()
-
+            target_url = get_next_url(PID, ORDER, BOT_VARIANT)
         elif STEP == "2":
-            st.link_button(
-                "🏆 Zum Scoreboard",
-                get_scoreboard_url(PID, ORDER),
-                use_container_width=True
-            )
-            st.caption("Danke! Sie können jetzt das Scoreboard ansehen.")
-            st.stop()
-
+            target_url = get_scoreboard_url(PID, ORDER)
         else:
             st.error("Ungültiger Step in der URL.")
             st.stop()
 
-# Wenn bereits geschlossen: sofort Survey
+        components.html(
+            f"""
+            <script>
+                window.top.location.href = "{target_url}";
+            </script>
+            """,
+            height=0,
+        )
+
+        st.caption("Falls die automatische Weiterleitung nicht funktioniert, laden Sie die Seite kurz neu.")
+        st.stop()
+
+# Wenn bereits geschlossen: sofort Survey und sonst nichts mehr rendern
 if st.session_state["closed"]:
     run_survey_and_stop()
+    st.stop()
 
 # -----------------------------
 # UI Header
@@ -1044,8 +1044,8 @@ if user_input and not st.session_state["closed"]:
 
         msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
         log_result(st.session_state["session_id"], False, None, msg_count, ended_by="bot", ended_via="abort_rule")
-        run_survey_and_stop()
-        st.stop()
+        st.session_state["closed"] = True
+        st.rerun()
 
     # ✅ Deal-Akzeptanz per Nachricht: last_bot_offer verwenden (stabil!)
     last_offer = st.session_state.get("last_bot_offer")
@@ -1066,8 +1066,7 @@ if user_input and not st.session_state["closed"]:
             ended_by="user",
             ended_via="deal_message"
         )
-        run_survey_and_stop()
-        st.stop()
+        st.rerun()
 
     # ✅ AUTO-DEAL: wenn User-Preis und letztes Bot-Angebot max. 5€ auseinanderliegen
     last_offer = st.session_state.get("last_bot_offer")
@@ -1121,17 +1120,8 @@ if user_input and not st.session_state["closed"]:
 
         # Ergebnis loggen: Bot nimmt an
         msg_count = len([m for m in st.session_state["history"] if m["role"] in ("user", "assistant")])
-        log_result(
-            st.session_state["session_id"],
-            True,
-            deal_price,
-            msg_count,
-            ended_by="bot",
-            ended_via="auto_deal_gap"
-        )
-
-        run_survey_and_stop()
-        st.stop()
+        log_result(st.session_state["session_id"], True, deal_price, msg_count, ended_by="bot", ended_via="auto_deal_gap")
+        st.rerun()
 
 
     # warn vs normal
@@ -1214,11 +1204,9 @@ if not st.session_state["closed"]:
             st.session_state["end_price"] = bot_price
             st.session_state["end_note"] = "Du hast den Deal über den Button bestätigt. Jetzt folgt der kurze Abschlussfragebogen."
 
-
             st.session_state["final_bot_price"] = bot_price
             st.session_state["closed"] = True
-            run_survey_and_stop()
-            st.stop()
+            st.rerun()
 
     with deal_col2:
         if st.button("❌ Verhandlung beenden", use_container_width=True):
@@ -1230,8 +1218,7 @@ if not st.session_state["closed"]:
             st.session_state["end_note"] = "Du hast die Verhandlung über den Button beendet. Jetzt folgt der kurze Abschlussfragebogen."
 
             st.session_state["closed"] = True
-            run_survey_and_stop()
-            st.stop()
+            st.rerun()
 
 # -----------------------------
 # Admin Bereich
@@ -1253,7 +1240,6 @@ else:
 if pwd_ok:
     st.sidebar.success("Zugang gewährt.")
 
-    # Optional aber sehr hilfreich: pro Bot filtern
     bot_filter = st.sidebar.selectbox(
         "Bot-Filter",
         options=["Alle", BOT_VARIANT],
